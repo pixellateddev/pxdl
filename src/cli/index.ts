@@ -1,20 +1,24 @@
-import { basename } from 'node:path'
 import { formatBytes, formatDuration } from '../core/utils'
+import { probeUrl } from '../core/probe'
 
 async function downloadFile(url: string) {
+  const probe = await probeUrl(url)
+  
   const response = await fetch(url, {
     headers: {
       'Accept-Encoding': 'identity',
     },
   })
+  
   if (!response.ok) {
     throw new Error(`Failed to fetch ${url}: ${response.statusText}`)
   }
 
-  const totalBytes = Number.parseInt(response.headers.get('content-length') || '0', 10)
-  const filename = basename(new URL(url).pathname) || 'download'
+  const totalBytes = probe.size
+  const filename = probe.filename
 
   console.log(`Downloading ${filename} (${formatBytes(totalBytes)})...`)
+  console.log(`Resumable: ${probe.isResumable ? 'Yes' : 'No'}`)
 
   const reader = response.body?.getReader()
   if (!reader) {
@@ -28,7 +32,9 @@ async function downloadFile(url: string) {
 
   while (true) {
     const { done, value } = await reader.read()
-    if (done) break
+    if (done) {
+      break
+    }
 
     writer.write(value)
     downloadedBytes += value.length
