@@ -1,5 +1,5 @@
-import { probeUrl } from '../core/probe'
-import { formatBytes } from '../core/utils'
+import { probeUrl } from '@/core/probe'
+import { formatBytes } from '@/core/utils'
 
 async function addToQueue(url: string) {
   try {
@@ -23,7 +23,7 @@ async function addToQueue(url: string) {
       throw new Error('Could not connect to daemon. Is it running?')
     }
 
-    const result = await response.json()
+    const result = (await response.json()) as { success: boolean; message: string }
     console.log(`✅ ${result.message}`)
 
   } catch (error: any) {

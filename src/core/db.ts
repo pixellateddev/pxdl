@@ -1,5 +1,5 @@
 import { Database } from 'bun:sqlite'
-import type { DownloadTask, NewDownload } from '../types'
+import type { DownloadTask, NewDownload } from '@/types'
 
 const db = new Database('pxdl.db')
 

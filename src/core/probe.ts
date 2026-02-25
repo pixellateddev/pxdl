@@ -1,5 +1,5 @@
 import { basename } from 'node:path'
-import type { ProbeResult } from '../types'
+import type { ProbeResult } from '@/types'
 
 export async function probeUrl(url: string): Promise<ProbeResult> {
   const response = await fetch(url, {
