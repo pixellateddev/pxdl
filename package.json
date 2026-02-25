@@ -3,6 +3,9 @@
   "module": "index.ts",
   "type": "module",
   "private": true,
+  "scripts": {
+    "dev": "bun run src/cli/index.ts"
+  },
   "devDependencies": {
     "@biomejs/biome": "^2.4.4",
     "@types/bun": "latest"
