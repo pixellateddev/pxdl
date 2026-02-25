@@ -1,15 +1,20 @@
 import { basename } from 'node:path'
+import { formatBytes, formatDuration } from '../core/utils'
 
 async function downloadFile(url: string) {
-  const response = await fetch(url)
+  const response = await fetch(url, {
+    headers: {
+      'Accept-Encoding': 'identity',
+    },
+  })
   if (!response.ok) {
     throw new Error(`Failed to fetch ${url}: ${response.statusText}`)
   }
 
-  const totalBytes = Number.parseInt(response.headers.get('content-length') || '0')
+  const totalBytes = Number.parseInt(response.headers.get('content-length') || '0', 10)
   const filename = basename(new URL(url).pathname) || 'download'
-  
-  console.log(`Downloading ${filename} (${(totalBytes / 1024 / 1024).toFixed(2)} MB)...`)
+
+  console.log(`Downloading ${filename} (${formatBytes(totalBytes)})...`)
 
   const reader = response.body?.getReader()
   if (!reader) {
@@ -19,6 +24,7 @@ async function downloadFile(url: string) {
   const writer = Bun.file(filename).writer()
   let downloadedBytes = 0
   let lastReportedProgress = -1
+  const startTime = Date.now()
 
   while (true) {
     const { done, value } = await reader.read()
@@ -27,14 +33,22 @@ async function downloadFile(url: string) {
     writer.write(value)
     downloadedBytes += value.length
 
+    const now = Date.now()
+    const elapsedSeconds = (now - startTime) / 1000
+    const speed = downloadedBytes / elapsedSeconds
+    const remainingBytes = totalBytes - downloadedBytes
+    const eta = remainingBytes / speed
+
     if (totalBytes > 0) {
-      const progress = Math.floor((downloadedBytes / totalBytes) * 100)
-      if (progress !== lastReportedProgress) {
-        process.stdout.write(`\rProgress: ${progress}% (${(downloadedBytes / 1024 / 1024).toFixed(2)} MB)`)
+      const progress = Math.min(100, Math.floor((downloadedBytes / totalBytes) * 100))
+      if (progress !== lastReportedProgress || elapsedSeconds % 1 < 0.1) {
+        process.stdout.write(
+          `\rProgress: ${progress}% | ${formatBytes(downloadedBytes)}/${formatBytes(totalBytes)} | ${formatBytes(speed)}/s | ETA: ${formatDuration(eta)}`
+        )
         lastReportedProgress = progress
       }
     } else {
-      process.stdout.write(`\rDownloaded: ${(downloadedBytes / 1024 / 1024).toFixed(2)} MB`)
+      process.stdout.write(`\rDownloaded: ${formatBytes(downloadedBytes)} | ${formatBytes(speed)}/s`)
     }
   }
 
