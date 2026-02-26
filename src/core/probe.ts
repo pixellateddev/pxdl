@@ -61,7 +61,9 @@ function parseResponse(url: string, response: Response): ProbeResult {
 
   if (!filename) {
     try {
-      filename = basename(new URL(url).pathname)
+      // Use response.url to get the final filename after redirects
+      const finalUrl = response.url || url
+      filename = basename(new URL(finalUrl).pathname)
     } catch {
       filename = 'download'
     }

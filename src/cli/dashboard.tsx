@@ -121,31 +121,6 @@ const Dashboard = () => {
       ? tasks.find(t => t.id === detailedTaskId) 
       : tasks[selectedIndex]
 
-    if (isAdding) {
-      if (key.escape) { setIsAdding(false); setNewUrl(''); return }
-      if (key.return && newUrl) {
-        try {
-          setStatusMessage('Probing URL...')
-          const probe = await probeUrl(newUrl)
-          await handleAddDownload({ 
-            url: probe.url, 
-            filename: probe.filename, 
-            size: probe.size, 
-            isResumable: probe.isResumable,
-            directory: '' // Use daemon default
-          })
-        } catch (err: any) { 
-          setError(`Probe failed: ${err.message}`) 
-          setStatusMessage(null)
-          setTimeout(() => setError(null), 3000)
-        }
-        return
-      }
-      if (key.backspace || key.delete) { setNewUrl(prev => prev.slice(0, -1)); return }
-      if (!key.ctrl && !key.meta && input) { setNewUrl(prev => prev + input) }
-      return
-    }
-
     if (isConfirmingDuplicate && duplicateTask) {
       if (input.toLowerCase() === 'y') {
         await handleAddDownload(duplicateTask, true)
@@ -176,6 +151,31 @@ const Dashboard = () => {
         setIsConfirmingDelete(false)
         setIsConfirmingFileDelete(false)
       }
+      return
+    }
+
+    if (isAdding) {
+      if (key.escape) { setIsAdding(false); setNewUrl(''); return }
+      if (key.return && newUrl) {
+        try {
+          setStatusMessage('Probing URL...')
+          const probe = await probeUrl(newUrl)
+          await handleAddDownload({ 
+            url: probe.url, 
+            filename: probe.filename, 
+            size: probe.size, 
+            isResumable: probe.isResumable,
+            directory: '' // Use daemon default
+          })
+        } catch (err: any) { 
+          setError(`Probe failed: ${err.message}`) 
+          setStatusMessage(null)
+          setTimeout(() => setError(null), 3000)
+        }
+        return
+      }
+      if (key.backspace || key.delete) { setNewUrl(prev => prev.slice(0, -1)); return }
+      if (!key.ctrl && !key.meta && input) { setNewUrl(prev => prev + input) }
       return
     }
 

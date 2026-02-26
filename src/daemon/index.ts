@@ -1,6 +1,6 @@
 import { repository } from '@/core/db'
 import type { NewDownload } from '@/types'
-import { startScheduler, activeDownloaders } from './scheduler'
+import { startScheduler, activeDownloaders, triggerScheduler } from './scheduler'
 import { join, parse } from 'node:path'
 import { homedir } from 'node:os'
 import { existsSync } from 'node:fs'
@@ -68,6 +68,8 @@ Bun.serve({
         size: body.size,
         isResumable: body.isResumable,
       })
+
+      triggerScheduler()
 
       return Response.json({
         success: true,
@@ -142,6 +144,7 @@ Bun.serve({
       const id = body.id
       console.log(`[API] Resuming task ${id}`)
       repository.updateStatus(id, 'pending')
+      triggerScheduler()
       return Response.json({ success: true })
     }
 

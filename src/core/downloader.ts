@@ -142,79 +142,102 @@ export class Downloader {
     const fd = openSync(this.tempPath, 'r+')
 
     try {
-      await Promise.all(
+      const results = await Promise.allSettled(
         segments.map((segment) => this.downloadSegment(segment, fd))
       )
+      
+      const errors = results.filter(r => r.status === 'rejected')
+      if (errors.length > 0) {
+        const firstError = (errors[0] as PromiseRejectedResult).reason
+        throw firstError
+      }
     } finally {
       closeSync(fd)
     }
   }
 
-  private async downloadSegment(segment: SegmentTask, fd: number): Promise<void> {
+  private async downloadSegment(segment: SegmentTask, fd: number, retries = 3): Promise<void> {
     if (segment.status === 'completed') {
       return
     }
 
-    const start = segment.startByte + segment.downloadedBytes
-    if (start > segment.endByte) {
-      return
-    }
+    let currentAttempt = 0
+    while (currentAttempt <= retries) {
+      try {
+        const start = segment.startByte + segment.downloadedBytes
+        if (start > segment.endByte) {
+          repository.updateSegmentProgress(segment.id, segment.downloadedBytes, 'completed')
+          return
+        }
 
-    const response = await fetch(this.task.url, {
-      headers: {
-        'Accept-Encoding': 'identity',
-        'User-Agent': USER_AGENT,
-        Range: `bytes=${start}-${segment.endByte}`,
-      },
-      signal: this.abortController.signal,
-    })
+        const response = await fetch(this.task.url, {
+          headers: {
+            'Accept-Encoding': 'identity',
+            'User-Agent': USER_AGENT,
+            Range: `bytes=${start}-${segment.endByte}`,
+          },
+          signal: this.abortController.signal,
+        })
 
-    if (!response.ok && response.status !== 206) {
-      throw new Error(`Segment HTTP ${response.status}`)
-    }
+        if (!response.ok && response.status !== 206) {
+          throw new Error(`Segment HTTP ${response.status}`)
+        }
 
-    const reader = response.body?.getReader()
-    if (!reader) {
-      throw new Error('Segment no body')
-    }
+        const reader = response.body?.getReader()
+        if (!reader) {
+          throw new Error('Segment no body')
+        }
 
-    let downloadedInSegment = segment.downloadedBytes
-    let sessionDownloadedInSegment = 0
-    let lastDbUpdate = segment.downloadedBytes
-    
-    this.segmentStats.set(segment.id, { 
-      downloaded: downloadedInSegment, 
-      sessionDownloaded: 0 
-    })
+        let downloadedInSegment = segment.downloadedBytes
+        let lastDbUpdate = segment.downloadedBytes
+        
+        this.segmentStats.set(segment.id, { 
+          downloaded: downloadedInSegment, 
+          sessionDownloaded: 0 
+        })
 
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) {
-        break
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) {
+            break
+          }
+
+          writeSync(fd, value, 0, value.length, segment.startByte + downloadedInSegment)
+          
+          const chunkLength = value.length
+          downloadedInSegment += chunkLength
+          
+          this.downloadedBytes += chunkLength
+          this.sessionDownloadedBytes += chunkLength
+          
+          this.segmentStats.set(segment.id, { 
+            downloaded: downloadedInSegment, 
+            sessionDownloaded: (this.segmentStats.get(segment.id)?.sessionDownloaded || 0) + chunkLength
+          })
+
+          if (downloadedInSegment - lastDbUpdate > 1024 * 1024) {
+            repository.updateSegmentProgress(segment.id, downloadedInSegment, 'downloading')
+            repository.updateProgress(this.task.id, this.downloadedBytes)
+            lastDbUpdate = downloadedInSegment
+          }
+        }
+
+        repository.updateSegmentProgress(segment.id, downloadedInSegment, 'completed')
+        repository.updateProgress(this.task.id, this.downloadedBytes)
+        return // Success
+      } catch (error: any) {
+        if (error.name === 'AbortError') throw error
+        
+        currentAttempt++
+        if (currentAttempt > retries) {
+          repository.updateSegmentProgress(segment.id, segment.downloadedBytes, 'failed')
+          throw error
+        }
+        
+        console.warn(`Segment ${segment.id} retry ${currentAttempt}/${retries} after error: ${error.message}`)
+        await Bun.sleep(1000 * currentAttempt) // Exponential-ish backoff
       }
-
-      writeSync(fd, value, 0, value.length, segment.startByte + downloadedInSegment)
-      
-      const chunkLength = value.length
-      downloadedInSegment += chunkLength
-      
-      this.downloadedBytes += chunkLength
-      this.sessionDownloadedBytes += chunkLength
-      
-      this.segmentStats.set(segment.id, { 
-        downloaded: downloadedInSegment, 
-        sessionDownloaded: (this.segmentStats.get(segment.id)?.sessionDownloaded || 0) + chunkLength
-      })
-
-      if (downloadedInSegment - lastDbUpdate > 1024 * 1024 || done) {
-        repository.updateSegmentProgress(segment.id, downloadedInSegment, 'downloading')
-        this.syncTotalProgress()
-        lastDbUpdate = downloadedInSegment
-      }
     }
-
-    repository.updateSegmentProgress(segment.id, downloadedInSegment, 'completed')
-    this.syncTotalProgress()
   }
 
   private syncTotalProgress(): void {
