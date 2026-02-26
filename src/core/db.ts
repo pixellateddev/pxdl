@@ -69,6 +69,22 @@ export const repository = {
     return task
   },
 
+  getByUrl(url: string): DownloadTask | null {
+    const row = db.prepare('SELECT * FROM downloads WHERE url = ?').get(url) as any
+    if (!row) {
+      return null
+    }
+    return this.mapRowToTask(row)
+  },
+
+  getByFilename(filename: string): DownloadTask | null {
+    const row = db.prepare('SELECT * FROM downloads WHERE filename = ?').get(filename) as any
+    if (!row) {
+      return null
+    }
+    return this.mapRowToTask(row)
+  },
+
   getPendingTask(): DownloadTask | null {
     const row = db.prepare("SELECT * FROM downloads WHERE status = 'pending' LIMIT 1").get() as any
     if (!row) {

@@ -29,6 +29,8 @@ const Dashboard = () => {
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false)
   const [isConfirmingFileDelete, setIsConfirmingFileDelete] = useState(false)
+  const [isConfirmingDuplicate, setIsConfirmingDuplicate] = useState(false)
+  const [duplicateTask, setDuplicateTask] = useState<NewDownload | null>(null)
   const [isAdding, setIsAdding] = useState(false)
   const [detailedTaskId, setDetailedTaskId] = useState<number | null>(null)
   const [newUrl, setNewUrl] = useState('')
@@ -87,6 +89,33 @@ const Dashboard = () => {
     }
   }
 
+  const handleAddDownload = async (data: NewDownload, force = false) => {
+    try {
+      const res = await fetch('http://localhost:8000/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...data, force })
+      })
+
+      if (res.status === 409) {
+        setDuplicateTask(data)
+        setIsConfirmingDuplicate(true)
+        setStatusMessage(null)
+        return
+      }
+
+      if (res.ok) {
+        setStatusMessage(`Added ${data.filename}`)
+        setNewUrl(''); setIsAdding(false); fetchStatus()
+        setTimeout(() => setStatusMessage(null), 2000)
+      } else {
+        setError('Failed to add to daemon')
+      }
+    } catch (err) {
+      setError('Connection failed')
+    }
+  }
+
   useInput(async (input, key) => {
     const activeTask = detailedTaskId !== null 
       ? tasks.find(t => t.id === detailedTaskId) 
@@ -98,19 +127,18 @@ const Dashboard = () => {
         try {
           setStatusMessage('Probing URL...')
           const probe = await probeUrl(newUrl)
-            await fetch('http://localhost:8000/add', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ url: probe.url, filename: probe.filename, size: probe.size, isResumable: probe.isResumable } as NewDownload)
-            })
-            setStatusMessage(`Added ${probe.filename}`)
-            setNewUrl(''); setIsAdding(false); fetchStatus()
-            setTimeout(() => setStatusMessage(null), 2000)
-          } catch (err: any) { 
-            setError(`Probe failed: ${err.message}`) 
-            setStatusMessage(null)
-            setTimeout(() => setError(null), 3000)
-          }
+          await handleAddDownload({ 
+            url: probe.url, 
+            filename: probe.filename, 
+            size: probe.size, 
+            isResumable: probe.isResumable,
+            directory: '' // Use daemon default
+          })
+        } catch (err: any) { 
+          setError(`Probe failed: ${err.message}`) 
+          setStatusMessage(null)
+          setTimeout(() => setError(null), 3000)
+        }
         return
       }
       if (key.backspace || key.delete) { setNewUrl(prev => prev.slice(0, -1)); return }
@@ -118,21 +146,27 @@ const Dashboard = () => {
       return
     }
 
+    if (isConfirmingDuplicate && duplicateTask) {
+      if (input.toLowerCase() === 'y') {
+        await handleAddDownload(duplicateTask, true)
+      }
+      setIsConfirmingDuplicate(false)
+      setDuplicateTask(null)
+      return
+    }
+
     if (isConfirmingDelete || isConfirmingFileDelete) {
       if (input.toLowerCase() === 'y') {
         if (activeTask) {
           if (activeTask.status === 'completed' && !isConfirmingFileDelete) {
-            // First step of completed delete: confirm task delete
             setIsConfirmingDelete(false)
             setIsConfirmingFileDelete(true)
             return
           }
-          // Final step: actually delete
           await handleDelete(activeTask.id, isConfirmingFileDelete)
         }
       } else if (input.toLowerCase() === 'n') {
         if (isConfirmingFileDelete && activeTask) {
-          // User chose NOT to delete physical file, but we still delete the task
           await handleDelete(activeTask.id, false)
         } else {
           setIsConfirmingDelete(false)
@@ -175,12 +209,10 @@ const Dashboard = () => {
     }
   })
 
-  // Render logic...
+  // Render helpers
   const renderTask = (task: DownloadTask, isSelected: boolean) => {
     const progress = task.size > 0 ? Math.floor((task.downloadedBytes / task.size) * 100) : 0
     const statusCfg = STATUS_ICONS[task.status] || STATUS_ICONS['pending']!
-    
-    // Widths
     const indicatorWidth = 3; const statusIconWidth = 2; const progressPercentWidth = 6; const gap = 1
     const showStats = columns > 100; const sizeWidth = 16; const speedWidth = 12; const etaWidth = 8
     const fixedTotal = indicatorWidth + statusIconWidth + progressPercentWidth + (showStats ? (sizeWidth + speedWidth + etaWidth) : sizeWidth) + (gap * 6)
@@ -205,24 +237,11 @@ const Dashboard = () => {
 
     return (
       <Box key={task.id} paddingX={1} marginBottom={0}>
-        <Box width={indicatorWidth} flexShrink={0}>
-          {isSelected ? <Text color="cyan">❯</Text> : <Text> </Text>}
-        </Box>
-        <Box width={filenameWidth} paddingRight={2} flexShrink={0}>
-          <Text color={isSelected ? 'cyan' : 'white'} wrap="truncate-end">
-            {task.filename}
-          </Text>
-        </Box>
-        <Box width={statusIconWidth} flexShrink={0} marginRight={gap}>
-          <Text color={isSelected ? 'cyan' : statusCfg.color}>{statusCfg.icon}</Text>
-        </Box>
-        <Box width={barWidth + progressPercentWidth + gap} flexShrink={1} marginRight={gap}>
-          <ProgressBar progress={progress} width={barWidth} />
-          <Text color={isSelected ? 'cyan' : undefined}> {progress.toString().padStart(3)}%</Text>
-        </Box>
-        <Box width={sizeWidth} flexShrink={0} marginRight={gap}>
-          <Text color={isSelected ? 'cyan' : 'white'}>{formatBytes(task.downloadedBytes)}/{formatBytes(task.size)}</Text>
-        </Box>
+        <Box width={indicatorWidth} flexShrink={0}>{isSelected ? <Text color="cyan">❯</Text> : <Text> </Text>}</Box>
+        <Box width={filenameWidth} paddingRight={2} flexShrink={0}><Text color={isSelected ? 'cyan' : 'white'} wrap="truncate-end">{task.filename}</Text></Box>
+        <Box width={statusIconWidth} flexShrink={0} marginRight={gap}><Text color={isSelected ? 'cyan' : statusCfg.color}>{statusCfg.icon}</Text></Box>
+        <Box width={barWidth + progressPercentWidth + gap} flexShrink={1} marginRight={gap}><ProgressBar progress={progress} width={barWidth} /><Text color={isSelected ? 'cyan' : undefined}> {progress.toString().padStart(3)}%</Text></Box>
+        <Box width={sizeWidth} flexShrink={0} marginRight={gap}><Text color={isSelected ? 'cyan' : 'white'}>{formatBytes(task.downloadedBytes)}/{formatBytes(task.size)}</Text></Box>
         {showStats && (
           <>
             <Box width={speedWidth} flexShrink={0} marginRight={gap}><Text color={isSelected ? 'cyan' : 'blue'}>{task.status === 'downloading' && task.speed ? `${formatBytes(task.speed)}/s` : '-'}</Text></Box>
@@ -251,10 +270,7 @@ const Dashboard = () => {
              </Box>
           ) : (
             <>
-              <Box justifyContent="space-between">
-                <Text bold color="cyan">{task.filename}</Text>
-                <Text color={STATUS_ICONS[task.status]?.color}>{task.status.toUpperCase()}</Text>
-              </Box>
+              <Box justifyContent="space-between"><Text bold color="cyan">{task.filename}</Text><Text color={STATUS_ICONS[task.status]?.color}>{task.status.toUpperCase()}</Text></Box>
               <Box marginTop={1}>
                 <Box marginRight={4}><Text bold>Progress: </Text><Text>{formatBytes(task.downloadedBytes)} / {formatBytes(task.size)}</Text></Box>
                 <Box marginRight={4}><Text bold>Speed: </Text><Text color="blue">{task.status === 'downloading' ? `${formatBytes(task.speed || 0)}/s` : '-'}</Text></Box>
@@ -275,9 +291,7 @@ const Dashboard = () => {
                 <Box width={4}><Text color="gray">#{idx + 1}</Text></Box>
                 <Box width={4}><Text color={statusCfg.color}>{statusCfg.icon}</Text></Box>
                 <Box width={35}><ProgressBar progress={progress} width={25} color={statusCfg.color} /><Text> {progress.toString().padStart(3)}%</Text></Box>
-                <Box width={15}>
-                  <Text color="blue">{s.status === 'downloading' && s.speed ? `${formatBytes(s.speed)}/s` : '-'}</Text>
-                </Box>
+                <Box width={15}><Text color="blue">{s.status === 'downloading' && s.speed ? `${formatBytes(s.speed)}/s` : '-'}</Text></Box>
               </Box>
             )
           })}
@@ -300,7 +314,11 @@ const Dashboard = () => {
       {isAdding && (
         <Box borderStyle="single" borderColor="cyan" paddingX={1} marginBottom={1} flexDirection="column">
           <Text bold color="cyan">Add New Download</Text>
-          <Box><Text>URL: </Text><Text>{newUrl}</Text><Text color="cyan">█</Text></Box>
+          {isConfirmingDuplicate ? (
+            <Text color="yellow" bold>URL already in queue. Add anyway? (y/n)</Text>
+          ) : (
+            <Box><Text>URL: </Text><Text>{newUrl}</Text><Text color="cyan">█</Text></Box>
+          )}
           <Text dimColor color="white">(Press ESC cancel, ENTER add)</Text>
         </Box>
       )}

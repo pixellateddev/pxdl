@@ -1,13 +1,42 @@
 import { repository } from '@/core/db'
 import type { NewDownload } from '@/types'
 import { startScheduler, activeDownloaders } from './scheduler'
-import { join } from 'node:path'
+import { join, parse } from 'node:path'
 import { homedir } from 'node:os'
+import { existsSync } from 'node:fs'
 
 // Start background scheduler
 startScheduler()
 
 const DEFAULT_DOWNLOAD_DIR = join(homedir(), 'Downloads')
+
+/**
+ * Ensures a filename is unique by checking both the disk and the task database.
+ * Appends (1), (2), etc. if collisions are found.
+ */
+function getUniqueFilename(directory: string, filename: string): string {
+  let finalName = filename
+  let counter = 1
+  
+  const p = parse(filename)
+  const base = p.name
+  const ext = p.ext
+
+  // Keep incrementing if:
+  // 1. Final file exists on disk
+  // 2. Hidden temp file exists on disk
+  // 3. Filename is already registered in our DB
+  while (
+    existsSync(join(directory, finalName)) || 
+    existsSync(join(directory, `.${finalName}.pxdl`)) ||
+    repository.getByFilename(finalName)
+  ) {
+    finalName = `${base} (${counter})${ext}`
+    counter++
+  }
+  
+  return finalName
+}
 
 Bun.serve({
   port: 8000,
@@ -15,19 +44,35 @@ Bun.serve({
     const url = new URL(req.url)
 
     if (req.method === 'POST' && url.pathname === '/add') {
-      const body = (await req.json()) as NewDownload
+      const body = (await req.json()) as NewDownload & { force?: boolean }
+      const directory = body.directory || DEFAULT_DOWNLOAD_DIR
+      
+      if (!body.force) {
+        const existing = repository.getByUrl(body.url)
+        if (existing) {
+          return Response.json({ 
+            success: false, 
+            error: 'ALREADY_EXISTS',
+            message: `URL already in queue: ${existing.filename}`
+          }, { status: 409 })
+        }
+      }
+
+      // Automatically find a unique filename to avoid overwriting anything
+      const filename = getUniqueFilename(directory, body.filename)
+
       const task = repository.addDownload({
         url: body.url,
-        filename: body.filename,
+        filename: filename,
+        directory: directory,
         size: body.size,
         isResumable: body.isResumable,
-        directory: body.directory || DEFAULT_DOWNLOAD_DIR
       })
 
       return Response.json({
         success: true,
         id: task.id,
-        message: `Added ${task.filename} to queue`
+        message: `Added ${filename} to queue`
       })
     }
 
@@ -117,13 +162,11 @@ Bun.serve({
         const tempPath = join(task.directory, `.${task.filename}.pxdl`)
 
         if (deleteFile || task.status !== 'completed') {
-          // Remove final file if it exists
           const file = Bun.file(fullPath)
           if (await file.exists()) {
             console.log(`[API] Removing file: ${fullPath}`)
             await file.delete()
           }
-          // Remove hidden temp file if it exists
           const tempFile = Bun.file(tempPath)
           if (await tempFile.exists()) {
             console.log(`[API] Removing temp file: ${tempPath}`)
