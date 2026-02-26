@@ -1,16 +1,27 @@
-import type { DownloadTask } from '@/types'
+import { openSync, writeSync, closeSync, truncateSync, renameSync, existsSync } from 'node:fs'
+import { join } from 'node:path'
+import type { DownloadTask, SegmentTask } from '@/types'
 import { repository } from './db'
+
+const SEGMENT_COUNT = 8
 
 export class Downloader {
   private task: DownloadTask
   private abortController: AbortController
+  private filePath: string
+  private tempPath: string
   public downloadedBytes = 0
+  public sessionDownloadedBytes = 0
   public startTime = 0
+  public segmentStats = new Map<number, { downloaded: number; sessionDownloaded: number }>()
 
   constructor(task: DownloadTask) {
     this.task = task
     this.abortController = new AbortController()
     this.downloadedBytes = task.downloadedBytes
+    this.filePath = join(task.directory, task.filename)
+    // Hidden temp file: .filename.pxdl
+    this.tempPath = join(task.directory, `.${task.filename}.pxdl`)
   }
 
   async start(): Promise<void> {
@@ -18,76 +29,20 @@ export class Downloader {
       this.startTime = Date.now()
       repository.updateStatus(this.task.id, 'downloading')
 
-      const file = Bun.file(this.task.filename)
-      const exists = await file.exists()
-      let startByte = 0
-
-      if (exists) {
-        startByte = file.size
-        // If file is already fully downloaded based on the probe size, mark as completed
-        if (this.task.size > 0 && startByte >= this.task.size) {
-          repository.markCompleted(this.task.id, startByte)
-          return
-        }
+      if (this.task.isResumable && this.task.size > 1024 * 1024) {
+        await this.downloadMultiThreaded()
+      } else {
+        await this.downloadSingleThreaded()
       }
 
-      const headers: Record<string, string> = {
-        'Accept-Encoding': 'identity',
+      // Rename from hidden .filename.pxdl to final filename upon completion
+      if (existsSync(this.tempPath)) {
+        renameSync(this.tempPath, this.filePath)
       }
 
-      if (startByte > 0) {
-        headers['Range'] = `bytes=${startByte}-`
-      }
-
-      const response = await fetch(this.task.url, {
-        headers,
-        signal: this.abortController.signal,
-      })
-
-      if (!response.ok && response.status !== 206) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const isPartial = response.status === 206
-      const reader = response.body?.getReader()
-      if (!reader) {
-        throw new Error('Failed to get response body reader')
-      }
-
-      // If we requested a range but got a 200, the server doesn't support resume
-      // We have to restart from 0
-      const actualStart = isPartial ? startByte : 0
-      const writer = file.writer({ append: isPartial })
-      
-      let downloaded = actualStart
-      let lastDbUpdate = actualStart
-      this.downloadedBytes = actualStart
-
-      while (true) {
-        const { done, value } = await reader.read()
-
-        if (done) {
-          break
-        }
-
-        writer.write(value)
-        downloaded += value.length
-        this.downloadedBytes = downloaded
-
-        // Update database every 1MB to avoid excessive I/O
-        if (downloaded - lastDbUpdate > 1024 * 1024) {
-          repository.updateProgress(this.task.id, downloaded)
-          lastDbUpdate = downloaded
-        }
-      }
-
-      await writer.flush()
-      writer.end()
-
-      repository.markCompleted(this.task.id, downloaded)
+      repository.markCompleted(this.task.id, this.task.size || this.downloadedBytes)
     } catch (error: any) {
       if (error.name === 'AbortError') {
-        // Task remains in its current downloaded state in DB
         repository.updateStatus(this.task.id, 'paused')
         return
       }
@@ -96,6 +51,166 @@ export class Downloader {
       repository.updateStatus(this.task.id, 'failed')
       throw error
     }
+  }
+
+  private async downloadSingleThreaded(): Promise<void> {
+    const startByte = existsSync(this.tempPath) ? Bun.file(this.tempPath).size : 0
+    
+    if (this.task.size > 0 && startByte >= this.task.size) {
+      return
+    }
+
+    const response = await fetch(this.task.url, {
+      headers: {
+        'Accept-Encoding': 'identity',
+        ...(startByte > 0 ? { Range: `bytes=${startByte}-` } : {}),
+      },
+      signal: this.abortController.signal,
+    })
+
+    if (!response.ok && response.status !== 206 && response.status !== 200) {
+      throw new Error(`HTTP ${response.status}`)
+    }
+
+    const reader = response.body?.getReader()
+    if (!reader) {
+      throw new Error('No body')
+    }
+
+    const isPartial = response.status === 206
+    const fd = openSync(this.tempPath, isPartial ? 'a' : 'w')
+    
+    let downloaded = isPartial ? startByte : 0
+    let lastDbUpdate = downloaded
+    this.downloadedBytes = downloaded
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) {
+          break
+        }
+
+        writeSync(fd, value)
+        downloaded += value.length
+        this.downloadedBytes = downloaded
+        this.sessionDownloadedBytes += value.length
+
+        if (downloaded - lastDbUpdate > 1024 * 1024) {
+          repository.updateProgress(this.task.id, downloaded)
+          lastDbUpdate = downloaded
+        }
+      }
+    } finally {
+      closeSync(fd)
+    }
+  }
+
+  private async downloadMultiThreaded(): Promise<void> {
+    let segments = repository.getSegments(this.task.id)
+
+    if (segments.length === 0) {
+      const totalSize = this.task.size
+      const segmentSize = Math.floor(totalSize / SEGMENT_COUNT)
+      const newSegments = []
+
+      for (let i = 0; i < SEGMENT_COUNT; i++) {
+        const start = i * segmentSize
+        const end = i === SEGMENT_COUNT - 1 ? totalSize - 1 : (i + 1) * segmentSize - 1
+        newSegments.push({ downloadId: this.task.id, startByte: start, endByte: end })
+      }
+
+      repository.createSegments(newSegments)
+      segments = repository.getSegments(this.task.id)
+    }
+
+    if (!existsSync(this.tempPath)) {
+      const empty = new Uint8Array(0)
+      await Bun.write(this.tempPath, empty)
+      truncateSync(this.tempPath, this.task.size)
+    }
+
+    const fd = openSync(this.tempPath, 'r+')
+
+    try {
+      await Promise.all(
+        segments.map((segment) => this.downloadSegment(segment, fd))
+      )
+    } finally {
+      closeSync(fd)
+    }
+  }
+
+  private async downloadSegment(segment: SegmentTask, fd: number): Promise<void> {
+    if (segment.status === 'completed') {
+      return
+    }
+
+    const start = segment.startByte + segment.downloadedBytes
+    if (start > segment.endByte) {
+      return
+    }
+
+    const response = await fetch(this.task.url, {
+      headers: {
+        'Accept-Encoding': 'identity',
+        Range: `bytes=${start}-${segment.endByte}`,
+      },
+      signal: this.abortController.signal,
+    })
+
+    if (!response.ok && response.status !== 206) {
+      throw new Error(`Segment HTTP ${response.status}`)
+    }
+
+    const reader = response.body?.getReader()
+    if (!reader) {
+      throw new Error('Segment no body')
+    }
+
+    let downloadedInSegment = segment.downloadedBytes
+    let sessionDownloadedInSegment = 0
+    let lastDbUpdate = segment.downloadedBytes
+    
+    this.segmentStats.set(segment.id, { 
+      downloaded: downloadedInSegment, 
+      sessionDownloaded: 0 
+    })
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) {
+        break
+      }
+
+      writeSync(fd, value, 0, value.length, segment.startByte + downloadedInSegment)
+      
+      const chunkLength = value.length
+      downloadedInSegment += chunkLength
+      
+      this.downloadedBytes += chunkLength
+      this.sessionDownloadedBytes += chunkLength
+      
+      this.segmentStats.set(segment.id, { 
+        downloaded: downloadedInSegment, 
+        sessionDownloaded: (this.segmentStats.get(segment.id)?.sessionDownloaded || 0) + chunkLength
+      })
+
+      if (downloadedInSegment - lastDbUpdate > 1024 * 1024 || done) {
+        repository.updateSegmentProgress(segment.id, downloadedInSegment, 'downloading')
+        this.syncTotalProgress()
+        lastDbUpdate = downloadedInSegment
+      }
+    }
+
+    repository.updateSegmentProgress(segment.id, downloadedInSegment, 'completed')
+    this.syncTotalProgress()
+  }
+
+  private syncTotalProgress(): void {
+    const segments = repository.getSegments(this.task.id)
+    const total = segments.reduce((acc, s) => acc + s.downloadedBytes, 0)
+    repository.updateProgress(this.task.id, total)
   }
 
   stop(): void {

@@ -1,7 +1,20 @@
 import { Database } from 'bun:sqlite'
-import type { DownloadTask, NewDownload } from '@/types'
+import type { DownloadTask, NewDownload, SegmentTask } from '@/types'
+import { join } from 'node:path'
+import { homedir } from 'node:os'
+import { mkdirSync } from 'node:fs'
 
-const db = new Database('pxdl.db')
+const CONFIG_DIR = join(homedir(), '.pxdl')
+const DB_PATH = join(CONFIG_DIR, 'pxdl.db')
+
+// Ensure config directory exists
+mkdirSync(CONFIG_DIR, { recursive: true })
+
+const db = new Database(DB_PATH)
+
+// Enable WAL mode for high-concurrency performance
+db.run('PRAGMA journal_mode = WAL;')
+db.run('PRAGMA foreign_keys = ON;')
 
 // Initialize the database schema
 db.run(`
@@ -9,30 +22,41 @@ db.run(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     url TEXT NOT NULL,
     filename TEXT NOT NULL,
+    directory TEXT NOT NULL,
     size INTEGER DEFAULT 0,
     downloaded_bytes INTEGER DEFAULT 0,
     speed REAL DEFAULT 0,
     eta INTEGER DEFAULT 0,
+    is_resumable INTEGER DEFAULT 0,
     status TEXT DEFAULT 'pending',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )
 `)
 
-// Migration: If the table was created without 'paused' support, we remove the CHECK constraint
-// SQLite doesn't easily allow dropping constraints, so we just remove it from the CREATE statement
-// and future runs won't have it.
+db.run(`
+  CREATE TABLE IF NOT EXISTS segments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    download_id INTEGER NOT NULL,
+    start_byte INTEGER NOT NULL,
+    end_byte INTEGER NOT NULL,
+    downloaded_bytes INTEGER DEFAULT 0,
+    status TEXT DEFAULT 'pending',
+    FOREIGN KEY (download_id) REFERENCES downloads(id) ON DELETE CASCADE
+  )
+`)
 
 export const repository = {
   addDownload(task: NewDownload): DownloadTask {
     const result = db
-      .prepare('INSERT INTO downloads (url, filename, size) VALUES (?, ?, ?)')
-      .run(task.url, task.filename, task.size)
+      .prepare('INSERT INTO downloads (url, filename, directory, size, is_resumable) VALUES (?, ?, ?, ?, ?)')
+      .run(task.url, task.filename, task.directory, task.size, task.isResumable ? 1 : 0)
 
     return this.getDownloadById(result.lastInsertRowid as number)!
   },
 
   deleteDownload(id: number): void {
     db.prepare('DELETE FROM downloads WHERE id = ?').run(id)
+    db.prepare('DELETE FROM segments WHERE download_id = ?').run(id)
   },
 
   getDownloadById(id: number): DownloadTask | null {
@@ -40,7 +64,9 @@ export const repository = {
     if (!row) {
       return null
     }
-    return this.mapRowToTask(row)
+    const task = this.mapRowToTask(row)
+    task.segments = this.getSegments(id)
+    return task
   },
 
   getPendingTask(): DownloadTask | null {
@@ -72,15 +98,56 @@ export const repository = {
     ).run(downloadedBytes, id)
   },
 
+  getSegments(downloadId: number): SegmentTask[] {
+    const rows = db.prepare('SELECT * FROM segments WHERE download_id = ?').all(downloadId) as any[]
+    return rows.map((row) => ({
+      id: row.id,
+      downloadId: row.download_id,
+      startByte: row.start_byte,
+      endByte: row.end_byte,
+      downloadedBytes: row.downloaded_bytes,
+      status: row.status,
+    }))
+  },
+
+  createSegments(segments: Omit<SegmentTask, 'id' | 'status' | 'downloadedBytes'>[]): void {
+    const insert = db.prepare(`
+      INSERT INTO segments (download_id, start_byte, end_byte) 
+      VALUES ($downloadId, $startByte, $endByte)
+    `)
+    
+    db.transaction(() => {
+      for (const s of segments) {
+        insert.run({
+          $downloadId: s.downloadId,
+          $startByte: s.startByte,
+          $endByte: s.endByte,
+        })
+      }
+    })()
+  },
+
+  updateSegmentProgress(id: number, downloadedBytes: number, status: SegmentTask['status']): void {
+    db.prepare('UPDATE segments SET downloaded_bytes = ?, status = ? WHERE id = ?').run(
+      downloadedBytes,
+      status,
+      id
+    )
+  },
+
   mapRowToTask(row: any): DownloadTask {
     return {
       id: row.id,
       url: row.url,
       filename: row.filename,
+      directory: row.directory,
       size: row.size,
       downloadedBytes: row.downloaded_bytes,
       status: row.status as DownloadTask['status'],
+      isResumable: row.is_resumable === 1,
       createdAt: row.created_at,
+      speed: row.speed,
+      eta: row.eta,
     }
   },
 }

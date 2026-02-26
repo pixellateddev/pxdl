@@ -18,6 +18,7 @@ async function addToQueue(url: string) {
         url: probe.url,
         filename: probe.filename,
         size: probe.size,
+        isResumable: probe.isResumable,
       } as NewDownload),
     })
 
