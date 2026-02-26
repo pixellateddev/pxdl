@@ -2,7 +2,7 @@ import { repository } from '@/core/db'
 import { Downloader } from '@/core/downloader'
 
 const MAX_CONCURRENT_DOWNLOADS = 3
-const activeDownloaders = new Map<number, Downloader>()
+export const activeDownloaders = new Map<number, Downloader>()
 
 export async function startScheduler() {
   console.log('Scheduler started...')

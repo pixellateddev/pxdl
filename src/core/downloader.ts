@@ -4,14 +4,18 @@ import { repository } from './db'
 export class Downloader {
   private task: DownloadTask
   private abortController: AbortController
+  public downloadedBytes = 0
+  public startTime = 0
 
   constructor(task: DownloadTask) {
     this.task = task
     this.abortController = new AbortController()
+    this.downloadedBytes = task.downloadedBytes
   }
 
   async start(): Promise<void> {
     try {
+      this.startTime = Date.now()
       repository.updateStatus(this.task.id, 'downloading')
 
       const response = await fetch(this.task.url, {
@@ -42,6 +46,7 @@ export class Downloader {
 
         writer.write(value)
         downloaded += value.length
+        this.downloadedBytes = downloaded
 
         // Update database every 1MB to avoid excessive I/O
         if (downloaded - lastDbUpdate > 1024 * 1024) {

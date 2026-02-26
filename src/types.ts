@@ -14,6 +14,8 @@ export interface DownloadTask {
   downloadedBytes: number
   status: 'pending' | 'downloading' | 'completed' | 'failed'
   createdAt: string
+  speed?: number
+  eta?: number
 }
 
 export type NewDownload = Pick<DownloadTask, 'url' | 'filename' | 'size'>
