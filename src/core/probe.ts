@@ -68,7 +68,7 @@ function parseResponse(url: string, response: Response): ProbeResult {
   }
 
   return {
-    url,
+    url: response.url || url,
     filename: filename || 'download',
     size,
     isResumable,
