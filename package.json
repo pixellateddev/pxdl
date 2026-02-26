@@ -4,12 +4,17 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "bun run src/cli/index.ts"
+    "dev": "bun run src/cli/index.ts",
+    "build": "bun build ./src/cli/index.ts --compile --outfile bin/pxdl",
+    "build:daemon": "bun build ./src/daemon/index.ts --compile --outfile bin/pxdl-daemon",
+    "build:all": "mkdir -p bin && bun run build && bun run build:daemon",
+    "install:global": "bun run build:all && sudo mv bin/pxdl bin/pxdl-daemon /usr/local/bin/"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.4",
     "@types/bun": "latest",
-    "@types/react": "^19.2.14"
+    "@types/react": "^19.2.14",
+    "react-devtools-core": "^7.0.1"
   },
   "peerDependencies": {
     "typescript": "^5"

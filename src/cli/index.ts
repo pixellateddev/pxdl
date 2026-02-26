@@ -48,7 +48,24 @@ async function handleDaemonCommand(action: string) {
     }
 
     console.log('Starting pxdl daemon in background...')
-    const proc = Bun.spawn(['bun', 'src/daemon/index.ts'], {
+    
+    // Determine command to run the daemon
+    // 1. Look for pxdl-daemon in /usr/local/bin (Global install)
+    // 2. Look for pxdl-daemon in the same directory as CLI (Local build)
+    // 3. Fallback to 'bun src/daemon/index.ts' (Development)
+    const globalDaemon = '/usr/local/bin/pxdl-daemon'
+    const localDaemon = join(import.meta.dir, 'pxdl-daemon')
+    
+    let command: string[]
+    if (existsSync(globalDaemon)) {
+      command = [globalDaemon]
+    } else if (existsSync(localDaemon)) {
+      command = [localDaemon]
+    } else {
+      command = ['bun', 'src/daemon/index.ts']
+    }
+
+    const proc = Bun.spawn(command, {
       stdout: Bun.file(LOG_FILE),
       stderr: Bun.file(LOG_FILE),
       detached: true,
