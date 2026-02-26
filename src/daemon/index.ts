@@ -51,8 +51,53 @@ Bun.serve({
       return Response.json(tasksWithStats)
     }
 
+    if (req.method === 'POST' && url.pathname === '/pause') {
+      const { id } = await req.json()
+      console.log(`[API] Pausing task ${id}`)
+      const downloader = activeDownloaders.get(id)
+      if (downloader) {
+        downloader.stop()
+        activeDownloaders.delete(id)
+      }
+      repository.updateStatus(id, 'paused')
+      return Response.json({ success: true })
+    }
+
+    if (req.method === 'POST' && url.pathname === '/resume') {
+      const { id } = await req.json()
+      console.log(`[API] Resuming task ${id}`)
+      repository.updateStatus(id, 'pending')
+      return Response.json({ success: true })
+    }
+
+    if (req.method === 'POST' && url.pathname === '/delete') {
+      const { id } = await req.json()
+      console.log(`[API] Deleting task ${id}`)
+      
+      const task = repository.getDownloadById(id)
+      if (task) {
+        const downloader = activeDownloaders.get(id)
+        if (downloader) {
+          downloader.stop()
+          activeDownloaders.delete(id)
+        }
+
+        if (task.status !== 'completed') {
+          const file = Bun.file(task.filename)
+          if (await file.exists()) {
+            console.log(`[API] Removing partial file: ${task.filename}`)
+            await file.delete()
+          }
+        }
+        
+        repository.deleteDownload(id)
+      }
+      
+      return Response.json({ success: true })
+    }
+
     return new Response('pxdl daemon is running', { status: 200 })
   },
 })
 
-console.log('🚀 pxdl daemon running on port 8000')
+console.log('🚀 pxdl daemon running on http://localhost:8000')

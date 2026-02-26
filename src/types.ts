@@ -12,7 +12,7 @@ export interface DownloadTask {
   filename: string
   size: number
   downloadedBytes: number
-  status: 'pending' | 'downloading' | 'completed' | 'failed'
+  status: 'pending' | 'downloading' | 'completed' | 'failed' | 'paused'
   createdAt: string
   speed?: number
   eta?: number

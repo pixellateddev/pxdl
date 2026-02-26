@@ -11,7 +11,9 @@ db.run(`
     filename TEXT NOT NULL,
     size INTEGER DEFAULT 0,
     downloaded_bytes INTEGER DEFAULT 0,
-    status TEXT CHECK(status IN ('pending', 'downloading', 'completed', 'failed')) DEFAULT 'pending',
+    speed REAL DEFAULT 0,
+    eta INTEGER DEFAULT 0,
+    status TEXT CHECK(status IN ('pending', 'downloading', 'completed', 'failed', 'paused')) DEFAULT 'pending',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )
 `)
@@ -23,6 +25,10 @@ export const repository = {
       .run(task.url, task.filename, task.size)
 
     return this.getDownloadById(result.lastInsertRowid as number)!
+  },
+
+  deleteDownload(id: number): void {
+    db.prepare('DELETE FROM downloads WHERE id = ?').run(id)
   },
 
   getDownloadById(id: number): DownloadTask | null {
