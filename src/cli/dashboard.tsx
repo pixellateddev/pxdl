@@ -181,14 +181,27 @@ const Dashboard = () => {
     }
   })
 
-  // Adjusted widths for icon-based status
+  // Fixed narrow widths
   const indicatorWidth = 3
-  const statusWidth = 6
-  const speedWidth = 16
-  const etaWidth = 12
-  const progressPercentWidth = 8
+  const statusIconWidth = 2
+  const progressPercentWidth = 6
+  const gap = 1
   
-  const barWidth = Math.max(15, Math.floor(columns * 0.25))
+  // Hiding logic
+  const showStats = columns > 100
+  const sizeWidth = 16
+  const speedWidth = 12
+  const etaWidth = 8
+
+  // Calculate widths to prioritize Filename
+  // Total of other elements (excluding filename and progressBar)
+  const fixedTotal = indicatorWidth + statusIconWidth + progressPercentWidth + (showStats ? (sizeWidth + speedWidth + etaWidth) : sizeWidth) + (gap * 6)
+  const leftover = columns - fixedTotal - 4
+  
+  // filename gets 50% of leftover space or at least 30 chars
+  const filenameWidth = Math.max(30, Math.floor(leftover * 0.5))
+  // progressBar gets the rest
+  const barWidth = Math.max(5, leftover - filenameWidth)
 
   return (
     <Box flexDirection="column" padding={1} height="100%">
@@ -239,30 +252,39 @@ const Dashboard = () => {
                    </Box>
                 ) : (
                   <>
-                    <Box flexGrow={1} paddingRight={2}>
+                    <Box width={filenameWidth} paddingRight={2} flexShrink={0}>
                       <Text color={isSelected ? 'cyan' : 'white'} wrap="truncate-end">
                         {task.filename}
                       </Text>
                     </Box>
-                    <Box width={statusWidth} flexShrink={0} justifyContent="center">
+                    <Box width={statusIconWidth} flexShrink={0} marginRight={gap}>
                       <Text color={isSelected ? 'cyan' : statusCfg.color}>
                         {statusCfg.icon}
                       </Text>
                     </Box>
-                    <Box width={barWidth + progressPercentWidth} flexShrink={0}>
+                    <Box width={barWidth + progressPercentWidth + gap} flexShrink={1} marginRight={gap}>
                       <ProgressBar progress={progress} width={barWidth} />
                       <Text color={isSelected ? 'cyan' : undefined}> {progress.toString().padStart(3)}%</Text>
                     </Box>
-                    <Box width={speedWidth} flexShrink={0}>
-                      <Text color={isSelected ? 'cyan' : 'blue'}>
-                        {task.status === 'downloading' && task.speed ? `${formatBytes(task.speed)}/s` : '-'}
+                    <Box width={sizeWidth} flexShrink={0} marginRight={gap}>
+                      <Text color={isSelected ? 'cyan' : 'white'} wrap="truncate-end">
+                         {formatBytes(task.downloadedBytes)}/{formatBytes(task.size)}
                       </Text>
                     </Box>
-                    <Box width={etaWidth} flexShrink={0}>
-                      <Text color={isSelected ? 'cyan' : 'yellow'}>
-                        {task.status === 'downloading' && task.eta !== undefined ? formatDuration(task.eta) : '-'}
-                      </Text>
-                    </Box>
+                    {showStats && (
+                      <>
+                        <Box width={speedWidth} flexShrink={0} marginRight={gap}>
+                          <Text color={isSelected ? 'cyan' : 'blue'}>
+                            {task.status === 'downloading' && task.speed ? `${formatBytes(task.speed)}/s` : '-'}
+                          </Text>
+                        </Box>
+                        <Box width={etaWidth} flexShrink={0}>
+                          <Text color={isSelected ? 'cyan' : 'yellow'}>
+                            {task.status === 'downloading' && task.eta !== undefined ? formatDuration(task.eta) : '-'}
+                          </Text>
+                        </Box>
+                      </>
+                    )}
                   </>
                 )}
               </Box>
@@ -271,7 +293,6 @@ const Dashboard = () => {
         </Box>
       )}
 
-      {/* Legend section at the bottom */}
       <Box marginTop={1} borderStyle="classic" borderColor="gray" paddingX={1} dimColor>
         {Object.entries(STATUS_ICONS).map(([key, cfg], idx) => (
           <Box key={key} marginRight={3}>

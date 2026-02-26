@@ -13,10 +13,14 @@ db.run(`
     downloaded_bytes INTEGER DEFAULT 0,
     speed REAL DEFAULT 0,
     eta INTEGER DEFAULT 0,
-    status TEXT CHECK(status IN ('pending', 'downloading', 'completed', 'failed', 'paused')) DEFAULT 'pending',
+    status TEXT DEFAULT 'pending',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )
 `)
+
+// Migration: If the table was created without 'paused' support, we remove the CHECK constraint
+// SQLite doesn't easily allow dropping constraints, so we just remove it from the CREATE statement
+// and future runs won't have it.
 
 export const repository = {
   addDownload(task: NewDownload): DownloadTask {
@@ -55,7 +59,7 @@ export const repository = {
   },
 
   updateStatus(id: number, status: DownloadTask['status']): void {
-    db.prepare('UPDATE downloads SET status = ? WHERE id = ?').run(status, id)
+    db.prepare('UPDATE downloads SET status = ?, speed = 0, eta = 0 WHERE id = ?').run(status, id)
   },
 
   updateProgress(id: number, downloadedBytes: number): void {
@@ -63,10 +67,9 @@ export const repository = {
   },
 
   markCompleted(id: number, downloadedBytes: number): void {
-    db.prepare("UPDATE downloads SET status = 'completed', downloaded_bytes = ? WHERE id = ?").run(
-      downloadedBytes,
-      id
-    )
+    db.prepare(
+      "UPDATE downloads SET status = 'completed', downloaded_bytes = ?, speed = 0, eta = 0 WHERE id = ?"
+    ).run(downloadedBytes, id)
   },
 
   mapRowToTask(row: any): DownloadTask {
