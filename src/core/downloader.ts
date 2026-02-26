@@ -2,8 +2,10 @@ import { openSync, writeSync, closeSync, truncateSync, renameSync, existsSync } 
 import { join } from 'node:path'
 import type { DownloadTask, SegmentTask } from '@/types'
 import { repository } from './db'
+import { notify } from './notifier'
 
 const SEGMENT_COUNT = 8
+const USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
 export class Downloader {
   private task: DownloadTask
@@ -41,6 +43,9 @@ export class Downloader {
       }
 
       repository.markCompleted(this.task.id, this.task.size || this.downloadedBytes)
+      
+      // Success notification
+      await notify('Download Complete', `${this.task.filename} finished successfully.`)
     } catch (error: any) {
       if (error.name === 'AbortError') {
         repository.updateStatus(this.task.id, 'paused')
@@ -49,6 +54,9 @@ export class Downloader {
 
       console.error(`Download failed for ${this.task.filename}:`, error.message)
       repository.updateStatus(this.task.id, 'failed')
+      
+      // Failure notification
+      await notify('Download Failed', `${this.task.filename}: ${error.message}`)
       throw error
     }
   }
@@ -63,6 +71,7 @@ export class Downloader {
     const response = await fetch(this.task.url, {
       headers: {
         'Accept-Encoding': 'identity',
+        'User-Agent': USER_AGENT,
         ...(startByte > 0 ? { Range: `bytes=${startByte}-` } : {}),
       },
       signal: this.abortController.signal,
@@ -154,6 +163,7 @@ export class Downloader {
     const response = await fetch(this.task.url, {
       headers: {
         'Accept-Encoding': 'identity',
+        'User-Agent': USER_AGENT,
         Range: `bytes=${start}-${segment.endByte}`,
       },
       signal: this.abortController.signal,

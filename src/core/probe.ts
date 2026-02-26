@@ -1,11 +1,14 @@
 import { basename } from 'node:path'
 import type { ProbeResult } from '@/types'
 
+const USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+
 export async function probeUrl(url: string): Promise<ProbeResult> {
   const response = await fetch(url, {
     method: 'HEAD',
     headers: {
       'Accept-Encoding': 'identity',
+      'User-Agent': USER_AGENT
     },
   })
 
@@ -15,6 +18,7 @@ export async function probeUrl(url: string): Promise<ProbeResult> {
       headers: {
         Range: 'bytes=0-0',
         'Accept-Encoding': 'identity',
+        'User-Agent': USER_AGENT
       },
     })
 
@@ -34,10 +38,8 @@ function parseResponse(url: string, response: Response): ProbeResult {
   const contentRange = headers.get('content-range')
   const contentLength = headers.get('content-length')
   
-  // A file is resumable if 'accept-ranges' is 'bytes' OR if we got a 206 Partial Content
   const isResumable = acceptRanges === 'bytes' || response.status === 206 || contentRange !== null
 
-  // Determine total size
   let size = 0
   if (contentRange) {
     const match = contentRange.match(/\/(\d+)$/)
@@ -48,7 +50,6 @@ function parseResponse(url: string, response: Response): ProbeResult {
     size = Number.parseInt(contentLength, 10)
   }
 
-  // Determine filename
   const contentDisposition = headers.get('content-disposition')
   let filename = ''
   if (contentDisposition) {
