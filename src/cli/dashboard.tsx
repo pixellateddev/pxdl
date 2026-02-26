@@ -1,27 +1,50 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Box, Text, render, useInput, useApp } from 'ink'
+import { Box, Text, render, useInput, useApp, useStdout } from 'ink'
 import { formatBytes, formatDuration } from '@/core/utils'
-import type { DownloadTask } from '@/types'
+import { probeUrl } from '@/core/probe'
+import type { DownloadTask, NewDownload } from '@/types'
 
-const ProgressBar = ({ progress }: { progress: number }) => {
-  const width = 15
+const ProgressBar = ({ progress, width }: { progress: number; width: number }) => {
   const completed = Math.floor((progress / 100) * width)
-  const remaining = width - completed
+  const remaining = Math.max(0, width - completed)
   
   return (
     <Text>
-      <Text color="green">{'█'.repeat(completed)}</Text>
-      <Text color="gray">{'░'.repeat(remaining)}</Text>
+      <Text color="green" bold>{'━'.repeat(completed)}</Text>
+      <Text color="gray" dimColor>{'─'.repeat(remaining)}</Text>
     </Text>
   )
+}
+
+const STATUS_ICONS: Record<string, { icon: string; color: string; label: string }> = {
+  pending: { icon: '○', color: 'gray', label: 'Pending' },
+  downloading: { icon: '↓', color: 'green', label: 'Downloading' },
+  paused: { icon: '⏸', color: 'yellow', label: 'Paused' },
+  completed: { icon: '✓', color: 'blue', label: 'Completed' },
+  failed: { icon: '×', color: 'red', label: 'Failed' },
 }
 
 const Dashboard = () => {
   const [tasks, setTasks] = useState<DownloadTask[]>([])
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false)
+  const [isAdding, setIsAdding] = useState(false)
+  const [newUrl, setNewUrl] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [statusMessage, setStatusMessage] = useState<string | null>(null)
+  
   const { exit } = useApp()
+  const { stdout } = useStdout()
+  const [columns, setColumns] = useState(stdout?.columns || 80)
+
+  useEffect(() => {
+    if (!stdout) return
+    const onResize = () => setColumns(stdout.columns)
+    stdout.on('resize', onResize)
+    return () => {
+      stdout.off('resize', onResize)
+    }
+  }, [stdout])
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -45,8 +68,64 @@ const Dashboard = () => {
   }, [fetchStatus])
 
   useInput(async (input, key) => {
+    if (isAdding) {
+      if (key.escape) {
+        setIsAdding(false)
+        setNewUrl('')
+        return
+      }
+
+      if (key.return) {
+        if (newUrl) {
+          try {
+            setStatusMessage('Probing URL...')
+            const probe = await probeUrl(newUrl)
+            
+            const res = await fetch('http://localhost:8000/add', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                url: probe.url,
+                filename: probe.filename,
+                size: probe.size
+              } as NewDownload)
+            })
+
+            if (res.ok) {
+              setStatusMessage(`Added ${probe.filename}`)
+              setNewUrl('')
+              setIsAdding(false)
+              fetchStatus()
+            } else {
+              setError('Failed to add to daemon')
+            }
+          } catch (err: any) {
+            setError(`Probe failed: ${err.message}`)
+          }
+        }
+        return
+      }
+
+      if (key.backspace || key.delete) {
+        setNewUrl(prev => prev.slice(0, -1))
+        return
+      }
+
+      if (!key.ctrl && !key.meta && input) {
+        setNewUrl(prev => prev + input)
+      }
+      return
+    }
+
     if (input === 'q') {
       exit()
+    }
+
+    if (input === 'n') {
+      setIsAdding(true)
+      setError(null)
+      setStatusMessage(null)
+      return
     }
 
     if (tasks.length === 0) return
@@ -102,41 +181,56 @@ const Dashboard = () => {
     }
   })
 
+  // Adjusted widths for icon-based status
+  const indicatorWidth = 3
+  const statusWidth = 6
+  const speedWidth = 16
+  const etaWidth = 12
+  const progressPercentWidth = 8
+  
+  const barWidth = Math.max(15, Math.floor(columns * 0.25))
+
   return (
-    <Box flexDirection="column" padding={1}>
+    <Box flexDirection="column" padding={1} height="100%">
       <Box marginBottom={1} justifyContent="space-between">
         <Box>
-          <Text bold color="cyan">pxdl Download Manager</Text>
-          <Text italic color="gray"> (↑↓ to select, SPACE/P to pause/resume, X to delete, Q to exit)</Text>
+          <Text bold color="cyan">pxdl</Text>
+          <Text dimColor color="white"> (N new, SPACE pause/resume, X delete, Q exit)</Text>
         </Box>
-        {error && <Text color="red">{error}</Text>}
+        <Box>
+          {statusMessage && <Text color="green">{statusMessage} </Text>}
+          {error && <Text color="red">{error}</Text>}
+        </Box>
       </Box>
 
-      {tasks.length === 0 ? (
+      {isAdding && (
+        <Box borderStyle="single" borderColor="cyan" paddingX={1} marginBottom={1} flexDirection="column">
+          <Text bold color="cyan">Add New Download</Text>
+          <Box>
+            <Text>URL: </Text>
+            <Text>{newUrl}</Text>
+            <Text color="cyan">█</Text>
+          </Box>
+          <Text dimColor color="white">(Press ESC to cancel, ENTER to add)</Text>
+        </Box>
+      )}
+
+      {tasks.length === 0 && !isAdding ? (
         <Box height={5} alignItems="center" justifyContent="center">
           <Text color="yellow">No downloads in queue.</Text>
         </Box>
       ) : (
-        <Box flexDirection="column">
-          <Box marginBottom={1} borderStyle="round" borderColor="gray" paddingX={1}>
-            <Box width={3}></Box>
-            <Box width={6}><Text bold>ID</Text></Box>
-            <Box width={15}><Text bold>Status</Text></Box>
-            <Box width={22}><Text bold>Progress</Text></Box>
-            <Box width={15}><Text bold>Speed</Text></Box>
-            <Box width={12}><Text bold>ETA</Text></Box>
-            <Box flexGrow={1}><Text bold>Filename</Text></Box>
-          </Box>
-          
+        <Box flexDirection="column" marginTop={1} flexGrow={1}>
           {tasks.map((task, index) => {
-            const isSelected = index === selectedIndex
+            const isSelected = index === selectedIndex && !isAdding
             const progress = task.size > 0 
               ? Math.floor((task.downloadedBytes / task.size) * 100) 
               : 0
+            const statusCfg = STATUS_ICONS[task.status] || STATUS_ICONS.pending
 
             return (
               <Box key={task.id} paddingX={1} marginBottom={0}>
-                <Box width={3}>
+                <Box width={indicatorWidth} flexShrink={0}>
                   {isSelected ? <Text color="cyan">❯</Text> : <Text> </Text>}
                 </Box>
                 {isSelected && isConfirmingDelete ? (
@@ -145,31 +239,28 @@ const Dashboard = () => {
                    </Box>
                 ) : (
                   <>
-                    <Box width={6}>
-                      <Text color={isSelected ? 'cyan' : undefined}>{task.id}</Text>
-                    </Box>
-                    <Box width={15}>
-                      <Text color={isSelected ? 'cyan' : (task.status === 'downloading' ? 'green' : 'white')}>
-                        {task.status.toUpperCase()}
+                    <Box flexGrow={1} paddingRight={2}>
+                      <Text color={isSelected ? 'cyan' : 'white'} wrap="truncate-end">
+                        {task.filename}
                       </Text>
                     </Box>
-                    <Box width={22}>
-                      <ProgressBar progress={progress} />
+                    <Box width={statusWidth} flexShrink={0} justifyContent="center">
+                      <Text color={isSelected ? 'cyan' : statusCfg.color}>
+                        {statusCfg.icon}
+                      </Text>
+                    </Box>
+                    <Box width={barWidth + progressPercentWidth} flexShrink={0}>
+                      <ProgressBar progress={progress} width={barWidth} />
                       <Text color={isSelected ? 'cyan' : undefined}> {progress.toString().padStart(3)}%</Text>
                     </Box>
-                    <Box width={15}>
+                    <Box width={speedWidth} flexShrink={0}>
                       <Text color={isSelected ? 'cyan' : 'blue'}>
                         {task.status === 'downloading' && task.speed ? `${formatBytes(task.speed)}/s` : '-'}
                       </Text>
                     </Box>
-                    <Box width={12}>
+                    <Box width={etaWidth} flexShrink={0}>
                       <Text color={isSelected ? 'cyan' : 'yellow'}>
                         {task.status === 'downloading' && task.eta !== undefined ? formatDuration(task.eta) : '-'}
-                      </Text>
-                    </Box>
-                    <Box flexGrow={1}>
-                      <Text italic color={isSelected ? 'cyan' : 'gray'} wrap="truncate-end">
-                        {task.filename}
                       </Text>
                     </Box>
                   </>
@@ -179,6 +270,16 @@ const Dashboard = () => {
           })}
         </Box>
       )}
+
+      {/* Legend section at the bottom */}
+      <Box marginTop={1} borderStyle="classic" borderColor="gray" paddingX={1} dimColor>
+        {Object.entries(STATUS_ICONS).map(([key, cfg], idx) => (
+          <Box key={key} marginRight={3}>
+            <Text color={cfg.color}>{cfg.icon}</Text>
+            <Text color="white"> {cfg.label}</Text>
+          </Box>
+        ))}
+      </Box>
     </Box>
   )
 }
