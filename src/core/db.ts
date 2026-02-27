@@ -1,8 +1,8 @@
 import { Database } from 'bun:sqlite'
-import type { DownloadTask, NewDownload, SegmentTask } from '@/types'
-import { join } from 'node:path'
-import { homedir } from 'node:os'
 import { mkdirSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
+import type { DownloadTask, NewDownload, SegmentTask } from '@/types'
 
 const CONFIG_DIR = join(homedir(), '.pxdl')
 const DB_PATH = join(CONFIG_DIR, 'pxdl.db')
@@ -48,7 +48,9 @@ db.run(`
 export const repository = {
   addDownload(task: NewDownload): DownloadTask {
     const result = db
-      .prepare('INSERT INTO downloads (url, filename, directory, size, is_resumable) VALUES (?, ?, ?, ?, ?)')
+      .prepare(
+        'INSERT INTO downloads (url, filename, directory, size, is_resumable) VALUES (?, ?, ?, ?, ?)'
+      )
       .run(task.url, task.filename, task.directory, task.size, task.isResumable ? 1 : 0)
 
     return this.getDownloadById(result.lastInsertRowid as number)!
@@ -131,7 +133,7 @@ export const repository = {
       INSERT INTO segments (download_id, start_byte, end_byte) 
       VALUES ($downloadId, $startByte, $endByte)
     `)
-    
+
     db.transaction(() => {
       for (const s of segments) {
         insert.run({

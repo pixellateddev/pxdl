@@ -1,14 +1,15 @@
 import { basename } from 'node:path'
 import type { ProbeResult } from '@/types'
 
-const USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+const USER_AGENT =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
-export async function probeUrl(url: string): Promise<ProbeResult> {
+export const probeUrl = async (url: string): Promise<ProbeResult> => {
   const response = await fetch(url, {
     method: 'HEAD',
     headers: {
       'Accept-Encoding': 'identity',
-      'User-Agent': USER_AGENT
+      'User-Agent': USER_AGENT,
     },
   })
 
@@ -18,7 +19,7 @@ export async function probeUrl(url: string): Promise<ProbeResult> {
       headers: {
         Range: 'bytes=0-0',
         'Accept-Encoding': 'identity',
-        'User-Agent': USER_AGENT
+        'User-Agent': USER_AGENT,
       },
     })
 
@@ -32,12 +33,12 @@ export async function probeUrl(url: string): Promise<ProbeResult> {
   return parseResponse(url, response)
 }
 
-function parseResponse(url: string, response: Response): ProbeResult {
+const parseResponse = (url: string, response: Response): ProbeResult => {
   const headers = response.headers
   const acceptRanges = headers.get('accept-ranges')
   const contentRange = headers.get('content-range')
   const contentLength = headers.get('content-length')
-  
+
   const isResumable = acceptRanges === 'bytes' || response.status === 206 || contentRange !== null
 
   let size = 0

@@ -1,16 +1,16 @@
+import { existsSync, writeFileSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
 import { probeUrl } from '@/core/probe'
 import { formatBytes } from '@/core/utils'
-import { startDashboard } from './dashboard'
 import type { NewDownload } from '@/types'
-import { join } from 'node:path'
-import { homedir } from 'node:os'
-import { existsSync, writeFileSync } from 'node:fs'
+import { startDashboard } from './dashboard'
 
 const CONFIG_DIR = join(homedir(), '.pxdl')
 const PID_FILE = join(CONFIG_DIR, 'daemon.pid')
 const LOG_FILE = join(CONFIG_DIR, 'daemon.log')
 
-async function addToQueue(url: string) {
+const addToQueue = async (url: string) => {
   try {
     console.log('Probing URL...')
     const probe = await probeUrl(url)
@@ -41,21 +41,21 @@ async function addToQueue(url: string) {
   }
 }
 
-async function handleDaemonCommand(action: string) {
+const handleDaemonCommand = async (action: string) => {
   if (action === 'start') {
     if (existsSync(PID_FILE)) {
       console.log('Daemon might already be running. Use "pxdl daemon stop" first if it is stuck.')
     }
 
     console.log('Starting pxdl daemon in background...')
-    
+
     // Determine command to run the daemon
     // 1. Look for pxdl-daemon in /usr/local/bin (Global install)
     // 2. Look for pxdl-daemon in the same directory as CLI (Local build)
     // 3. Fallback to 'bun src/daemon/index.ts' (Development)
     const globalDaemon = '/usr/local/bin/pxdl-daemon'
     const localDaemon = join(import.meta.dir, 'pxdl-daemon')
-    
+
     let command: string[]
     if (existsSync(globalDaemon)) {
       command = [globalDaemon]
@@ -93,7 +93,9 @@ async function handleDaemonCommand(action: string) {
       console.log('Could not kill process. It might have already stopped.')
     }
     const { unlinkSync } = await import('node:fs')
-    try { unlinkSync(PID_FILE) } catch {}
+    try {
+      unlinkSync(PID_FILE)
+    } catch {}
     process.exit(0)
   }
 

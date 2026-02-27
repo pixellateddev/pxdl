@@ -1,6 +1,6 @@
+import { EventEmitter } from 'node:events'
 import { repository } from '@/core/db'
 import { Downloader } from '@/core/downloader'
-import { EventEmitter } from 'node:events'
 
 const MAX_CONCURRENT_DOWNLOADS = 3
 export const activeDownloaders = new Map<number, Downloader>()
@@ -8,7 +8,7 @@ const schedulerEvents = new EventEmitter()
 
 let isProcessing = false
 
-async function processQueue() {
+const processQueue = async () => {
   if (isProcessing) return
   isProcessing = true
 
@@ -41,15 +41,15 @@ async function processQueue() {
   }
 }
 
-export function triggerScheduler() {
+export const triggerScheduler = () => {
   schedulerEvents.emit('check')
 }
 
-export async function startScheduler() {
+export const startScheduler = async () => {
   console.log('Scheduler started...')
-  
+
   schedulerEvents.on('check', () => {
-    processQueue().catch(err => console.error('Scheduler process error:', err))
+    processQueue().catch((err) => console.error('Scheduler process error:', err))
   })
 
   // Initial check

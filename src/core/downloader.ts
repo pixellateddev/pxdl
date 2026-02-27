@@ -1,11 +1,12 @@
-import { openSync, writeSync, closeSync, truncateSync, renameSync, existsSync } from 'node:fs'
+import { closeSync, existsSync, openSync, renameSync, truncateSync, writeSync } from 'node:fs'
 import { join } from 'node:path'
 import type { DownloadTask, SegmentTask } from '@/types'
 import { repository } from './db'
 import { notify } from './notifier'
 
 const SEGMENT_COUNT = 8
-const USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+const USER_AGENT =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
 export class Downloader {
   private task: DownloadTask
@@ -43,7 +44,7 @@ export class Downloader {
       }
 
       repository.markCompleted(this.task.id, this.task.size || this.downloadedBytes)
-      
+
       // Success notification
       await notify('Download Complete', `${this.task.filename} finished successfully.`)
     } catch (error: any) {
@@ -54,7 +55,7 @@ export class Downloader {
 
       console.error(`Download failed for ${this.task.filename}:`, error.message)
       repository.updateStatus(this.task.id, 'failed')
-      
+
       // Failure notification
       await notify('Download Failed', `${this.task.filename}: ${error.message}`)
       throw error
@@ -63,7 +64,7 @@ export class Downloader {
 
   private async downloadSingleThreaded(): Promise<void> {
     const startByte = existsSync(this.tempPath) ? Bun.file(this.tempPath).size : 0
-    
+
     if (this.task.size > 0 && startByte >= this.task.size) {
       return
     }
@@ -88,7 +89,7 @@ export class Downloader {
 
     const isPartial = response.status === 206
     const fd = openSync(this.tempPath, isPartial ? 'a' : 'w')
-    
+
     let downloaded = isPartial ? startByte : 0
     let lastDbUpdate = downloaded
     this.downloadedBytes = downloaded
@@ -145,8 +146,8 @@ export class Downloader {
       const results = await Promise.allSettled(
         segments.map((segment) => this.downloadSegment(segment, fd))
       )
-      
-      const errors = results.filter(r => r.status === 'rejected')
+
+      const errors = results.filter((r) => r.status === 'rejected')
       if (errors.length > 0) {
         const firstError = (errors[0] as PromiseRejectedResult).reason
         throw firstError
@@ -190,10 +191,10 @@ export class Downloader {
 
         let downloadedInSegment = segment.downloadedBytes
         let lastDbUpdate = segment.downloadedBytes
-        
-        this.segmentStats.set(segment.id, { 
-          downloaded: downloadedInSegment, 
-          sessionDownloaded: 0 
+
+        this.segmentStats.set(segment.id, {
+          downloaded: downloadedInSegment,
+          sessionDownloaded: 0,
         })
 
         while (true) {
@@ -203,16 +204,17 @@ export class Downloader {
           }
 
           writeSync(fd, value, 0, value.length, segment.startByte + downloadedInSegment)
-          
+
           const chunkLength = value.length
           downloadedInSegment += chunkLength
-          
+
           this.downloadedBytes += chunkLength
           this.sessionDownloadedBytes += chunkLength
-          
-          this.segmentStats.set(segment.id, { 
-            downloaded: downloadedInSegment, 
-            sessionDownloaded: (this.segmentStats.get(segment.id)?.sessionDownloaded || 0) + chunkLength
+
+          this.segmentStats.set(segment.id, {
+            downloaded: downloadedInSegment,
+            sessionDownloaded:
+              (this.segmentStats.get(segment.id)?.sessionDownloaded || 0) + chunkLength,
           })
 
           if (downloadedInSegment - lastDbUpdate > 1024 * 1024) {
@@ -227,14 +229,16 @@ export class Downloader {
         return // Success
       } catch (error: any) {
         if (error.name === 'AbortError') throw error
-        
+
         currentAttempt++
         if (currentAttempt > retries) {
           repository.updateSegmentProgress(segment.id, segment.downloadedBytes, 'failed')
           throw error
         }
-        
-        console.warn(`Segment ${segment.id} retry ${currentAttempt}/${retries} after error: ${error.message}`)
+
+        console.warn(
+          `Segment ${segment.id} retry ${currentAttempt}/${retries} after error: ${error.message}`
+        )
         await Bun.sleep(1000 * currentAttempt) // Exponential-ish backoff
       }
     }

@@ -1,9 +1,9 @@
+import { existsSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join, parse } from 'node:path'
 import { repository } from '@/core/db'
 import type { NewDownload } from '@/types'
-import { startScheduler, activeDownloaders, triggerScheduler } from './scheduler'
-import { join, parse } from 'node:path'
-import { homedir } from 'node:os'
-import { existsSync } from 'node:fs'
+import { activeDownloaders, startScheduler, triggerScheduler } from './scheduler'
 
 // Start background scheduler
 startScheduler()
@@ -14,10 +14,10 @@ const DEFAULT_DOWNLOAD_DIR = join(homedir(), 'Downloads')
  * Ensures a filename is unique by checking both the disk and the task database.
  * Appends (1), (2), etc. if collisions are found.
  */
-function getUniqueFilename(directory: string, filename: string): string {
+const getUniqueFilename = (directory: string, filename: string): string => {
   let finalName = filename
   let counter = 1
-  
+
   const p = parse(filename)
   const base = p.name
   const ext = p.ext
@@ -27,14 +27,14 @@ function getUniqueFilename(directory: string, filename: string): string {
   // 2. Hidden temp file exists on disk
   // 3. Filename is already registered in our DB
   while (
-    existsSync(join(directory, finalName)) || 
+    existsSync(join(directory, finalName)) ||
     existsSync(join(directory, `.${finalName}.pxdl`)) ||
     repository.getByFilename(finalName)
   ) {
     finalName = `${base} (${counter})${ext}`
     counter++
   }
-  
+
   return finalName
 }
 
@@ -46,15 +46,18 @@ Bun.serve({
     if (req.method === 'POST' && url.pathname === '/add') {
       const body = (await req.json()) as NewDownload & { force?: boolean }
       const directory = body.directory || DEFAULT_DOWNLOAD_DIR
-      
+
       if (!body.force) {
         const existing = repository.getByUrl(body.url)
         if (existing) {
-          return Response.json({ 
-            success: false, 
-            error: 'ALREADY_EXISTS',
-            message: `URL already in queue: ${existing.filename}`
-          }, { status: 409 })
+          return Response.json(
+            {
+              success: false,
+              error: 'ALREADY_EXISTS',
+              message: `URL already in queue: ${existing.filename}`,
+            },
+            { status: 409 }
+          )
         }
       }
 
@@ -74,17 +77,17 @@ Bun.serve({
       return Response.json({
         success: true,
         id: task.id,
-        message: `Added ${filename} to queue`
+        message: `Added ${filename} to queue`,
       })
     }
 
     if (url.pathname === '/status') {
       const tasks = repository.getAllDownloads()
-      
-      const tasksWithStats = tasks.map(task => {
+
+      const tasksWithStats = tasks.map((task) => {
         const rawSegments = repository.getSegments(task.id)
         const downloader = activeDownloaders.get(task.id)
-        
+
         let downloadedBytes = task.downloadedBytes
         let speed = 0
         let eta = 0
@@ -98,28 +101,28 @@ Bun.serve({
           eta = speed > 0 ? Math.floor(remaining / speed) : 0
         }
 
-        const segments = rawSegments.map(s => {
+        const segments = rawSegments.map((s) => {
           if (downloader) {
             const stats = downloader.segmentStats.get(s.id)
             if (stats && downloader.startTime > 0) {
               const elapsed = (Date.now() - downloader.startTime) / 1000
               const segmentSpeed = stats.sessionDownloaded / elapsed
-              return { 
-                ...s, 
+              return {
+                ...s,
                 downloadedBytes: stats.downloaded,
-                speed: segmentSpeed > 0 ? segmentSpeed : 0
+                speed: segmentSpeed > 0 ? segmentSpeed : 0,
               }
             }
           }
           return s
         })
-          
+
         return {
           ...task,
           downloadedBytes,
           speed,
           eta,
-          segments
+          segments,
         }
       })
 
@@ -152,7 +155,7 @@ Bun.serve({
       const body = (await req.json()) as { id: number; deleteFile?: boolean }
       const { id, deleteFile } = body
       console.log(`[API] Deleting task ${id} (Delete File: ${deleteFile})`)
-      
+
       const task = repository.getDownloadById(id)
       if (task) {
         const downloader = activeDownloaders.get(id)
@@ -176,10 +179,10 @@ Bun.serve({
             await tempFile.delete()
           }
         }
-        
+
         repository.deleteDownload(id)
       }
-      
+
       return Response.json({ success: true })
     }
 

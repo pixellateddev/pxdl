@@ -1,4 +1,4 @@
-export function formatBytes(bytes: number, decimals = 2): string {
+export const formatBytes = (bytes: number, decimals = 2): string => {
   if (bytes === 0) {
     return '0 B'
   }
@@ -12,7 +12,7 @@ export function formatBytes(bytes: number, decimals = 2): string {
   return `${Number.parseFloat((bytes / k ** i).toFixed(dm))}${sizes[i]}`
 }
 
-export function formatDuration(seconds: number): string {
+export const formatDuration = (seconds: number): string => {
   if (seconds === Number.POSITIVE_INFINITY || Number.isNaN(seconds)) {
     return 'Calculating...'
   }

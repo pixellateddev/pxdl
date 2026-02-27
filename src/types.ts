@@ -31,4 +31,7 @@ export interface SegmentTask {
   speed?: number
 }
 
-export type NewDownload = Pick<DownloadTask, 'url' | 'filename' | 'size' | 'isResumable' | 'directory'>
+export type NewDownload = Pick<
+  DownloadTask,
+  'url' | 'filename' | 'size' | 'isResumable' | 'directory'
+>
