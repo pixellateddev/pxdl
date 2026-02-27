@@ -1,137 +1,120 @@
-import { existsSync, writeFileSync } from 'node:fs'
-import { homedir } from 'node:os'
-import { join } from 'node:path'
-import { probeUrl } from '@/core/probe'
-import { formatBytes } from '@/core/utils'
-import type { NewDownload } from '@/types'
 import { startDashboard } from './dashboard'
+import {
+  isDaemonRunning,
+  startDaemonBackground,
+  stopDaemon,
+  ensureDaemonRunning,
+} from './daemon'
+import {
+  addToQueue,
+  listTasks,
+  pauseTask,
+  resumeTask,
+  removeTask,
+} from './client'
 
-const CONFIG_DIR = join(homedir(), '.pxdl')
-const PID_FILE = join(CONFIG_DIR, 'daemon.pid')
-const LOG_FILE = join(CONFIG_DIR, 'daemon.log')
-
-const addToQueue = async (url: string) => {
-  try {
-    console.log('Probing URL...')
-    const probe = await probeUrl(url)
-
-    console.log(`File: ${probe.filename}`)
-    console.log(`Size: ${formatBytes(probe.size)}`)
-
-    const response = await fetch('http://localhost:8000/add', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        url: probe.url,
-        filename: probe.filename,
-        size: probe.size,
-        isResumable: probe.isResumable,
-      } as NewDownload),
-    })
-
-    if (!response.ok) {
-      throw new Error('Could not connect to daemon. Is it running?')
-    }
-
-    const result = (await response.json()) as { success: boolean; message: string }
-    console.log(`✅ ${result.message}`)
-  } catch (error: any) {
-    console.error(`Error: ${error.message}`)
-    process.exit(1)
-  }
-}
-
-const handleDaemonCommand = async (action: string) => {
-  if (action === 'start') {
-    if (existsSync(PID_FILE)) {
-      console.log('Daemon might already be running. Use "pxdl daemon stop" first if it is stuck.')
-    }
-
-    console.log('Starting pxdl daemon in background...')
-
-    // Determine command to run the daemon
-    // 1. Look for pxdl-daemon in /usr/local/bin (Global install)
-    // 2. Look for pxdl-daemon in the same directory as CLI (Local build)
-    // 3. Fallback to 'bun src/daemon/index.ts' (Development)
-    const globalDaemon = '/usr/local/bin/pxdl-daemon'
-    const localDaemon = join(import.meta.dir, 'pxdl-daemon')
-
-    let command: string[]
-    if (existsSync(globalDaemon)) {
-      command = [globalDaemon]
-    } else if (existsSync(localDaemon)) {
-      command = [localDaemon]
-    } else {
-      command = ['bun', 'src/daemon/index.ts']
-    }
-
-    const proc = Bun.spawn(command, {
-      stdout: Bun.file(LOG_FILE),
-      stderr: Bun.file(LOG_FILE),
-      detached: true,
-    })
-
-    writeFileSync(PID_FILE, proc.pid.toString())
-    console.log(`🚀 Daemon started (PID: ${proc.pid})`)
-    console.log(`Logs: ${LOG_FILE}`)
-    proc.unref() // Allow CLI to exit while daemon keeps running
-    process.exit(0)
-  }
-
-  if (action === 'stop') {
-    if (!existsSync(PID_FILE)) {
-      console.log('No PID file found. Daemon might not be running.')
-      return
-    }
-
-    const pidText = await Bun.file(PID_FILE).text()
-    const pid = Number.parseInt(pidText.trim())
-    try {
-      process.kill(pid, 'SIGTERM')
-      console.log(`🛑 Daemon (PID: ${pid}) stopped.`)
-    } catch (e) {
-      console.log('Could not kill process. It might have already stopped.')
-    }
-    const { unlinkSync } = await import('node:fs')
-    try {
-      unlinkSync(PID_FILE)
-    } catch {}
-    process.exit(0)
-  }
-
-  if (action === 'status') {
-    try {
-      const res = await fetch('http://localhost:8000')
-      if (res.ok) {
-        console.log('🟢 pxdl daemon is ONLINE')
-      } else {
-        console.log('🔴 pxdl daemon is unresponsive')
-      }
-    } catch {
-      console.log('🔴 pxdl daemon is OFFLINE')
-    }
-    process.exit(0)
-  }
-}
-
-const args = Bun.argv.slice(2)
-const command = args[0]
-
-if (!command) {
+const showHelp = () => {
   console.log('Usage:')
-  console.log('  pxdl <url>           - Add download to queue')
-  console.log('  pxdl dash            - Show download dashboard')
-  console.log('  pxdl daemon start    - Start background daemon')
-  console.log('  pxdl daemon stop     - Stop background daemon')
-  console.log('  pxdl daemon status   - Check daemon status')
-  process.exit(1)
+  console.log('  pxdl                 - Open interactive dashboard (default)')
+  console.log('  pxdl add <url>       - Add a new download')
+  console.log('  pxdl list            - List all downloads')
+  console.log('  pxdl pause <id|all>  - Pause download(s)')
+  console.log('  pxdl resume <id|all> - Resume download(s)')
+  console.log('  pxdl remove <id> [--clean] - Remove download (and optionally delete file)')
+  console.log('  pxdl start           - Start daemon in background')
+  console.log('  pxdl stop            - Stop background daemon')
+  console.log('  pxdl status          - Check daemon status')
+  console.log('  pxdl help            - Show this help')
 }
 
-if (command === 'daemon') {
-  handleDaemonCommand(args[1] || 'status')
-} else if (command === 'dash' || command === 'list') {
-  startDashboard()
-} else {
-  // Assume it's a URL
-  addToQueue(command)
+const showStatus = async () => {
+  if (await isDaemonRunning()) {
+    console.log('🟢 pxdl daemon is ONLINE')
+  } else {
+    console.log('🔴 pxdl daemon is OFFLINE')
+  }
 }
+
+const main = async () => {
+  const args = Bun.argv.slice(2)
+  const command = args[0]
+
+  if (!command) {
+    await ensureDaemonRunning()
+    startDashboard()
+    return
+  }
+
+  switch (command) {
+    case 'add':
+      if (!args[1]) {
+        console.error('Usage: pxdl add <url>')
+        process.exit(1)
+      }
+      await addToQueue(args[1])
+      break
+    case 'list':
+      await listTasks()
+      break
+    case 'dash':
+      await ensureDaemonRunning()
+      startDashboard()
+      break
+    case 'pause':
+      if (!args[1]) {
+        console.error('Usage: pxdl pause <id|all>')
+        process.exit(1)
+      }
+      await pauseTask(args[1])
+      break
+    case 'resume':
+      if (!args[1]) {
+        console.error('Usage: pxdl resume <id|all>')
+        process.exit(1)
+      }
+      await resumeTask(args[1])
+      break
+    case 'remove':
+      if (!args[1]) {
+        console.error('Usage: pxdl remove <id> [--clean]')
+        process.exit(1)
+      }
+      await removeTask(args[1], args.includes('--clean'))
+      break
+    case 'start':
+      if (await isDaemonRunning()) {
+        console.log('Daemon is already running.')
+      } else {
+        const success = await startDaemonBackground()
+        if (success) {
+          console.log('🚀 Daemon started in background.')
+        } else {
+          console.error('❌ Failed to start daemon.')
+          process.exit(1)
+        }
+      }
+      break
+    case 'stop':
+      await stopDaemon()
+      break
+    case 'status':
+      await showStatus()
+      break
+    case 'help':
+    case '--help':
+    case '-h':
+      showHelp()
+      break
+    default:
+      // Check if it's a URL
+      if (command.startsWith('http://') || command.startsWith('https://')) {
+        await addToQueue(command)
+      } else {
+        console.error(`Unknown command: ${command}`)
+        showHelp()
+        process.exit(1)
+      }
+  }
+}
+
+main()

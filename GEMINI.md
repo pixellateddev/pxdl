@@ -33,11 +33,15 @@ bun install
 - **Global Install:** `bun run install:global` (Requires sudo to move binaries to `/usr/local/bin`)
 
 ## CLI Usage
-- `pxdl <url>`: Add a new download to the queue.
-- `pxdl dash`: Open the interactive Ink-based dashboard.
-- `pxdl daemon start`: Start the download daemon in the background.
-- `pxdl daemon stop`: Stop the background daemon.
-- `pxdl daemon status`: Check if the daemon is running.
+- `pxdl`: Open the interactive Ink-based dashboard (default).
+- `pxdl add <url>`: Add a new download to the queue.
+- `pxdl list`: Display a quick summary table of downloads.
+- `pxdl pause <id|all>`: Pause tasks.
+- `pxdl resume <id|all>`: Resume tasks.
+- `pxdl remove <id> [--clean]`: Remove task and optionally delete the file.
+- `pxdl start`: Start the download daemon in the background.
+- `pxdl stop`: Stop the background daemon.
+- `pxdl status`: Check if the daemon is running.
 
 ## Development Conventions
 - **Coding Style:** Always use **arrow functions** (`const fn = () => ...`) instead of the `function` keyword for consistency.

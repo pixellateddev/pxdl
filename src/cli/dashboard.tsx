@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { probeUrl } from '@/core/probe'
 import { formatBytes, formatDuration } from '@/core/utils'
 import type { DownloadTask, NewDownload, SegmentTask } from '@/types'
+import { API_BASE } from '@/constants'
 
 const ProgressBar = ({
   progress,
@@ -64,7 +65,7 @@ const Dashboard = () => {
 
   const fetchStatus = useCallback(async () => {
     try {
-      const res = await fetch('http://localhost:8000/status')
+      const res = await fetch(`${API_BASE}/status`)
       if (res.ok) {
         const data = (await res.json()) as DownloadTask[]
         setTasks(data)
@@ -85,7 +86,7 @@ const Dashboard = () => {
 
   const handleDelete = async (id: number, deleteFile: boolean) => {
     try {
-      await fetch(`http://localhost:8000/delete`, {
+      await fetch(`${API_BASE}/delete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, deleteFile }),
@@ -103,7 +104,7 @@ const Dashboard = () => {
 
   const handleAddDownload = async (data: NewDownload, force = false) => {
     try {
-      const res = await fetch('http://localhost:8000/add', {
+      const res = await fetch(`${API_BASE}/add`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...data, force }),
@@ -228,7 +229,7 @@ const Dashboard = () => {
     if (input === 'p' || input === ' ') {
       try {
         const endpoint = activeTask.status === 'paused' ? '/resume' : '/pause'
-        await fetch(`http://localhost:8000${endpoint}`, {
+        await fetch(`${API_BASE}${endpoint}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id: activeTask.id }),

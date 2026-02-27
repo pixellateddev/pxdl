@@ -5,6 +5,8 @@ import { repository } from '@/core/db'
 import type { NewDownload } from '@/types'
 import { activeDownloaders, startScheduler, triggerScheduler } from './scheduler'
 
+import { DAEMON_PORT } from '@/constants'
+
 // Start background scheduler
 startScheduler()
 
@@ -39,7 +41,7 @@ const getUniqueFilename = (directory: string, filename: string): string => {
 }
 
 Bun.serve({
-  port: 8000,
+  port: DAEMON_PORT,
   async fetch(req) {
     const url = new URL(req.url)
 
@@ -190,4 +192,4 @@ Bun.serve({
   },
 })
 
-console.log('🚀 pxdl daemon running on http://localhost:8000')
+console.log(`🚀 pxdl daemon running on http://localhost:${DAEMON_PORT}`)
