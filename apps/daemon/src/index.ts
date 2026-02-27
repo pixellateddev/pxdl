@@ -75,13 +75,19 @@ Bun.serve({
     // --- SSE ENDPOINT ---
     if (url.pathname === '/events') {
       const signal = req.signal
+      let timer: Timer
+
       return new Response(
         new ReadableStream({
           start(controller) {
-            const timer = setInterval(() => {
+            timer = setInterval(() => {
               if (signal.aborted) {
                 clearInterval(timer)
-                controller.close()
+                try {
+                  controller.close()
+                } catch (e) {
+                  // Already closed
+                }
                 return
               }
               const stats = getTasksWithStats()
@@ -89,7 +95,7 @@ Bun.serve({
             }, 1000)
           },
           cancel() {
-            // Handled via signal
+            if (timer) clearInterval(timer)
           },
         }),
         {
