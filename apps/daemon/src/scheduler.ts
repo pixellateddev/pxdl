@@ -1,6 +1,5 @@
 import { EventEmitter } from 'node:events'
-import { repository } from '@pxdl/core'
-import { Downloader } from '@pxdl/core'
+import { Downloader, repository } from '@pxdl/core'
 
 const MAX_CONCURRENT_DOWNLOADS = 3
 export const activeDownloaders = new Map<number, Downloader>()
