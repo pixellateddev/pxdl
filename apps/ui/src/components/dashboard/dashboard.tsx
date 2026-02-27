@@ -6,7 +6,6 @@ import styles from './dashboard.module.css'
 // TODO: Use environment variable or config for this
 const API_BASE = 'http://localhost:18281'
 
-// Mock probeUrl for now until we have a browser-safe version or API endpoint
 const probeUrl = async (url: string) => {
   const res = await fetch(`${API_BASE}/probe?url=${encodeURIComponent(url)}`)
   if (!res.ok) throw new Error('Failed to probe URL')
@@ -14,7 +13,7 @@ const probeUrl = async (url: string) => {
 }
 
 const STATUS_ICONS: Record<string, { icon: string; color: string; label: string }> = {
-  pending: { icon: '○', color: '#9ca3af', label: 'Pending' },
+  pending: { icon: '○', color: '#94a3b8', label: 'Pending' },
   downloading: { icon: '↓', color: '#10b981', label: 'Downloading' },
   paused: { icon: '⏸', color: '#f59e0b', label: 'Paused' },
   completed: { icon: '✓', color: '#3b82f6', label: 'Completed' },
@@ -22,16 +21,49 @@ const STATUS_ICONS: Record<string, { icon: string; color: string; label: string 
 }
 
 interface ProgressBarProps {
-  progress: number
+  task: DownloadTask
   color: string
 }
 
-const ProgressBar: FC<ProgressBarProps> = ({ progress, color }) => {
+const ProgressBar: FC<ProgressBarProps> = ({ task, color }) => {
+  const { segments, size, downloadedBytes } = task
+  const totalProgress = size > 0 ? (downloadedBytes / size) * 100 : 0
+
+  if (segments && segments.length > 0 && size > 0) {
+    return (
+      <div className={styles.progressBarBg}>
+        {segments.map((segment) => {
+          const segmentSize = segment.endByte - segment.startByte + 1
+          const left = (segment.startByte / size) * 100
+          const width = (segmentSize / size) * 100
+          const segmentProgress = (segment.downloadedBytes / segmentSize) * 100
+
+          return (
+            <div
+              key={segment.id}
+              className={styles.segmentSlot}
+              style={{ left: `${left}%`, width: `${width}%` }}
+            >
+              <div
+                className={`${styles.segmentFill} ${segment.status === 'downloading' ? styles.active : ''}`}
+                style={{
+                  width: `${segmentProgress}%`,
+                  backgroundColor: color,
+                  color: color, // For shadow in pulse animation
+                }}
+              />
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
   return (
     <div className={styles.progressBarBg}>
-      <div 
-        className={styles.progressBarFill} 
-        style={{ width: `${progress}%`, backgroundColor: color }}
+      <div
+        className={styles.progressBarFill}
+        style={{ width: `${totalProgress}%`, backgroundColor: color }}
       />
     </div>
   )
@@ -75,7 +107,6 @@ export const Dashboard: FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: task.id }),
       })
-      
     } catch (err) {
       setError('Action failed')
     }
@@ -91,7 +122,6 @@ export const Dashboard: FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, deleteFile: false }),
       })
-      
     } catch (err) {
       setError('Delete failed')
     }
@@ -120,7 +150,6 @@ export const Dashboard: FC = () => {
       if (res.ok) {
         setNewUrl('')
         setIsAdding(false)
-        
         setStatusMessage(null)
       } else if (res.status === 409) {
         setError('URL already in queue')
@@ -139,11 +168,19 @@ export const Dashboard: FC = () => {
     <div className={styles.container}>
       <header className={styles.header}>
         <div className={styles.headerLeft}>
-          <h1 className={styles.title}>pxdl <span className={styles.version}>v1.0</span></h1>
+          <h1 className={styles.title}>
+            pxdl <span className={styles.version}>v1.0</span>
+          </h1>
         </div>
         <div className={styles.headerRight}>
-          <button className={styles.btnPrimary} onClick={() => setIsAdding(!isAdding)}>
-            {isAdding ? 'Cancel' : '+ New Download'}
+          <button 
+            className={isAdding ? styles.btnIcon : styles.btnPrimary} 
+            onClick={() => {
+              setIsAdding(!isAdding)
+              setError(null)
+            }}
+          >
+            {isAdding ? '✕' : '+ New Download'}
           </button>
         </div>
       </header>
@@ -155,21 +192,24 @@ export const Dashboard: FC = () => {
         <form className={styles.addForm} onSubmit={handleAddDownload}>
           <input 
             type="text" 
-            placeholder="Enter URL to download..." 
+            placeholder="Paste download URL here..." 
             value={newUrl}
             onChange={(e) => setNewUrl(e.target.value)}
             autoFocus
             disabled={isProbing}
           />
           <button type="submit" className={styles.btnSuccess} disabled={isProbing || !newUrl}>
-            {isProbing ? 'Probing...' : 'Add to Queue'}
+            {isProbing ? 'Probing...' : 'Download'}
           </button>
         </form>
       )}
 
       <div className={styles.taskList}>
         {tasks.length === 0 ? (
-          <div className={styles.emptyState}>No downloads in queue</div>
+          <div className={styles.emptyState}>
+            <p>No downloads yet.</p>
+            <small>Add a URL to get started.</small>
+          </div>
         ) : (
           tasks.map(task => {
             const progress = task.size > 0 ? (task.downloadedBytes / task.size) * 100 : 0
@@ -179,10 +219,12 @@ export const Dashboard: FC = () => {
               <div key={task.id} className={`${styles.taskCard} ${styles[task.status]}`}>
                 <div className={styles.taskHeader}>
                   <div className={styles.taskTitleGroup}>
-                    <span className={styles.statusIcon} style={{ color: statusCfg.color }}>
+                    <div className={styles.statusIcon} style={{ color: statusCfg.color }}>
                       {statusCfg.icon}
+                    </div>
+                    <span className={styles.filename} title={task.filename}>
+                      {task.filename}
                     </span>
-                    <span className={styles.filename}>{task.filename}</span>
                   </div>
                   <div className={styles.taskActions}>
                     {task.status !== 'completed' && (
@@ -197,7 +239,7 @@ export const Dashboard: FC = () => {
                     <button 
                       className={`${styles.btnIcon} ${styles.btnDanger}`} 
                       onClick={() => handleDelete(task.id)}
-                      title="Delete"
+                      title="Delete Task"
                     >
                       🗑
                     </button>
@@ -205,7 +247,7 @@ export const Dashboard: FC = () => {
                 </div>
 
                 <div className={styles.taskBody}>
-                  <ProgressBar progress={progress} color={statusCfg.color} />
+                  <ProgressBar task={task} color={statusCfg.color} />
                   
                   <div className={styles.taskStats}>
                     <div className={styles.statGroup}>
@@ -214,20 +256,22 @@ export const Dashboard: FC = () => {
                     </div>
                     <div className={styles.statGroup}>
                       <span className={styles.statLabel}>Size</span>
-                      <span className={styles.statValue}>{formatBytes(task.downloadedBytes)} / {formatBytes(task.size)}</span>
+                      <span className={styles.statValue}>
+                        {formatBytes(task.downloadedBytes)} / {formatBytes(task.size)}
+                      </span>
                     </div>
-                    {task.status === 'downloading' && (
-                      <>
-                        <div className={styles.statGroup}>
-                          <span className={styles.statLabel}>Speed</span>
-                          <span className={styles.statValue} style={{ color: 'var(--accent)' }}>{formatBytes(task.speed || 0)}/s</span>
-                        </div>
-                        <div className={styles.statGroup}>
-                          <span className={styles.statLabel}>ETA</span>
-                          <span className={styles.statValue} style={{ color: 'var(--warning)' }}>{formatDuration(task.eta || 0)}</span>
-                        </div>
-                      </>
-                    )}
+                    <div className={styles.statGroup}>
+                      <span className={styles.statLabel}>Speed</span>
+                      <span className={styles.statValue} style={{ color: task.status === 'downloading' ? 'var(--success)' : 'inherit' }}>
+                        {task.status === 'downloading' ? `${formatBytes(task.speed || 0)}/s` : '—'}
+                      </span>
+                    </div>
+                    <div className={styles.statGroup}>
+                      <span className={styles.statLabel}>ETA</span>
+                      <span className={styles.statValue} style={{ color: task.status === 'downloading' ? 'var(--warning)' : 'inherit' }}>
+                        {task.status === 'downloading' ? formatDuration(task.eta || 0) : '—'}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
