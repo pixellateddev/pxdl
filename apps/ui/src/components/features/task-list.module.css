@@ -1,7 +1,5 @@
-.taskList {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
+.row {
+  transition: background-color 0.2s ease;
 }
 
 .emptyState {
@@ -16,7 +14,7 @@
 
 .emptyState p {
   margin: 0 0 0.5rem 0;
-  color: #f1f5f9;
+  color: var(--mantine-color-text);
   font-size: 1.125rem;
 }
 

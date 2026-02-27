@@ -1,11 +1,11 @@
 .progress-bar-bg {
-  background-color: #0f172a;
+  background-color: var(--mantine-color-default);
   height: 0.625rem;
   border-radius: 1rem;
   overflow: hidden;
   margin-bottom: 1.25rem;
   position: relative;
-  border: 1px solid #334155;
+  border: 1px solid var(--mantine-color-default-border);
 }
 
 .segment-slot {

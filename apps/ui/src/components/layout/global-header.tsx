@@ -1,28 +1,19 @@
 import type { FC } from 'react'
-import { useDownloadStore } from '../../store/use-download-store'
-import styles from './global-header.module.css'
+import { Group, Title, Text, Box } from '@mantine/core'
+import { IconDownload } from '@tabler/icons-react'
 
 export const GlobalHeader: FC = () => {
-  const { isAdding, setIsAdding, setError } = useDownloadStore()
-
   return (
-    <header className={styles.header}>
-      <div className={styles.headerLeft}>
-        <h1 className={styles.title}>
-          pxdl <span className={styles.version}>v1.0</span>
-        </h1>
-      </div>
-      <div className={styles.headerRight}>
-        <button 
-          className={isAdding ? styles.btnIcon : styles.btnPrimary} 
-          onClick={() => {
-            setIsAdding(!isAdding)
-            setError(null)
-          }}
-        >
-          {isAdding ? '✕' : '+ New Download'}
-        </button>
-      </div>
-    </header>
+    <Box mb="md" pb="xs">
+      <Group align="baseline" gap="xs">
+        <IconDownload size={24} color="var(--mantine-color-teal-filled)" />
+        <Title order={2} style={{ letterSpacing: '-0.04em', fontSize: '1.25rem' }}>
+          Pixel Downloader
+        </Title>
+        <Text size="xs" fw={500} c="teal" style={{ letterSpacing: '0.05em', opacity: 0.8 }}>
+          V1.0
+        </Text>
+      </Group>
+    </Box>
   )
 }
