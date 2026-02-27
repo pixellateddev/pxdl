@@ -1,8 +1,8 @@
 import { Box, render, Text, useApp, useInput, useStdout } from 'ink'
-import React, { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { probeUrl } from '@/core/probe'
 import { formatBytes, formatDuration } from '@/core/utils'
-import type { DownloadTask, NewDownload, SegmentTask } from '@/types'
+import type { DownloadTask, NewDownload } from '@/types'
 import { API_BASE } from '@/constants'
 
 const ProgressBar = ({
@@ -392,9 +392,11 @@ const Dashboard = () => {
         </Box>
 
         <Box flexDirection='column' marginBottom={1} flexGrow={1}>
-          <Text bold color='white' marginBottom={1}>
-            Segments ({task.segments?.length || 0})
-          </Text>
+          <Box marginBottom={1}>
+            <Text bold color='white'>
+              Segments ({task.segments?.length || 0})
+            </Text>
+          </Box>
           {task.segments?.map((s, idx) => {
             const progress = Math.floor((s.downloadedBytes / (s.endByte - s.startByte + 1)) * 100)
             const statusCfg = STATUS_ICONS[s.status] || STATUS_ICONS['pending']!

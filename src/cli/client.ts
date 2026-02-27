@@ -25,7 +25,7 @@ export const addToQueue = async (url: string) => {
     })
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
+      const errorData = (await response.json().catch(() => ({}))) as any
       throw new Error(errorData.message || 'Could not add download to daemon.')
     }
 
