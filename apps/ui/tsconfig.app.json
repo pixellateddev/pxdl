@@ -20,7 +20,8 @@
     "baseUrl": ".",
     "paths": {
       "@pxdl/core": ["../../packages/core/index.ts"],
-      "@pxdl/types": ["../../packages/types/index.ts"]
+      "@pxdl/types": ["../../packages/types/index.ts"],
+      "@pxdl/utils": ["../../packages/utils/index.ts"]
     },
 
     /* Linting */

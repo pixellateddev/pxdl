@@ -36,6 +36,7 @@
       "dependencies": {
         "@pxdl/core": "workspace:*",
         "@pxdl/types": "workspace:*",
+        "@pxdl/utils": "workspace:*",
         "react": "^19.2.0",
         "react-dom": "^19.2.0",
       },
@@ -52,11 +53,15 @@
     "packages/core": {
       "name": "@pxdl/core",
       "dependencies": {
+        "@pxdl/utils": "workspace:*",
         "bun": "latest",
       },
     },
     "packages/types": {
       "name": "@pxdl/types",
+    },
+    "packages/utils": {
+      "name": "@pxdl/utils",
     },
   },
   "packages": {
@@ -167,6 +172,8 @@
     "@pxdl/core": ["@pxdl/core@workspace:packages/core"],
 
     "@pxdl/types": ["@pxdl/types@workspace:packages/types"],
+
+    "@pxdl/utils": ["@pxdl/utils@workspace:packages/utils"],
 
     "@rolldown/binding-android-arm64": ["@rolldown/binding-android-arm64@1.0.0-rc.6", "", { "os": "android", "cpu": "arm64" }, "sha512-kvjTSWGcrv+BaR2vge57rsKiYdVR8V8CoS0vgKrc570qRBfty4bT+1X0z3j2TaVV+kAYzA0PjeB9+mdZyqUZlg=="],
 

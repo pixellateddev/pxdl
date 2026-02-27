@@ -1,5 +1,5 @@
 {
-  "name": "@pxdl/core",
+  "name": "@pxdl/utils",
   "module": "index.ts",
   "types": "index.ts",
   "type": "module",
@@ -10,9 +10,5 @@
   "scripts": {
     "lint": "biome check .",
     "format": "biome check --write ."
-  },
-  "dependencies": {
-    "@pxdl/utils": "workspace:*",
-    "bun": "latest"
   }
 }
