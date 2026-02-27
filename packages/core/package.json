@@ -1,7 +1,11 @@
 {
   "name": "@pxdl/core",
   "module": "index.ts",
+  "types": "index.ts",
   "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
   "private": true,
   "scripts": {
     "lint": "biome check .",

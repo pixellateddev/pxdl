@@ -22,7 +22,8 @@
     "noImplicitOverride": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@pxdl/core": ["./packages/core/index.ts"],
+      "@pxdl/types": ["./packages/types/index.ts"]
     },
 
     // Some stricter flags (disabled by default)
