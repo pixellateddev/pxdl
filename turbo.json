@@ -5,10 +5,14 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**", "bin/**"]
     },
+    "build:sidecar": {
+      "outputs": ["../desktop/src-tauri/bin/**"]
+    },
     "dev": {
       "cache": false,
       "persistent": true
     },
+    "tauri": {},
     "lint": {
       "dependsOn": ["^lint"]
     },

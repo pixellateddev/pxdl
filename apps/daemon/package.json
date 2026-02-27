@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "bun run src/index.ts",
     "build": "bun build ./src/index.ts --compile --outfile bin/pxdl-daemon",
+    "build:sidecar": "mkdir -p ../desktop/src-tauri/bin && bun build ./src/index.ts --compile --outfile ../desktop/src-tauri/bin/pxdl-daemon-aarch64-apple-darwin",
     "lint": "biome check .",
     "format": "biome check --write ."
   },
