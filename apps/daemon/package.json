@@ -1,0 +1,17 @@
+{
+  "name": "pxdl-daemon",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "build": "bun build ./src/index.ts --compile --outfile bin/pxdl-daemon",
+    "lint": "biome check .",
+    "format": "biome check --write ."
+  },
+  "dependencies": {
+    "@pxdl/core": "workspace:*",
+    "@pxdl/types": "workspace:*",
+    "bun": "latest"
+  }
+}

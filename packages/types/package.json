@@ -1,0 +1,10 @@
+{
+  "name": "@pxdl/types",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "lint": "biome check .",
+    "format": "biome check --write ."
+  }
+}

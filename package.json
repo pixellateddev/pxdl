@@ -1,26 +1,20 @@
 {
-  "name": "pxdl",
-  "module": "index.ts",
-  "type": "module",
+  "name": "pxdl-monorepo",
   "private": true,
+  "packageManager": "bun@1.3.6",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "bun run src/cli/index.ts",
-    "build": "bun build ./src/cli/index.ts --compile --outfile bin/pxdl",
-    "build:daemon": "bun build ./src/daemon/index.ts --compile --outfile bin/pxdl-daemon",
-    "build:all": "mkdir -p bin && bun run build && bun run build:daemon",
-    "install:global": "bun run build:all && sudo mv bin/pxdl bin/pxdl-daemon /usr/local/bin/"
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "format": "turbo format"
   },
   "devDependencies": {
+    "turbo": "latest",
     "@biomejs/biome": "^2.4.4",
-    "@types/bun": "latest",
-    "@types/react": "^19.2.14",
-    "react-devtools-core": "^7.0.1"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
-  },
-  "dependencies": {
-    "ink": "^6.8.0",
-    "react": "^19.2.4"
+    "@types/bun": "latest"
   }
 }
