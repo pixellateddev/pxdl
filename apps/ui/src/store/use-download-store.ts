@@ -2,6 +2,8 @@ import { create } from 'zustand'
 import type { DownloadTask, ProbeResult } from '@pxdl/types'
 import { notifications } from '@mantine/notifications'
 
+const isTauri = () => '__TAURI_INTERNALS__' in window
+
 const API_BASE = 'http://localhost:18281'
 
 interface DownloadState {
@@ -31,6 +33,7 @@ interface DownloadState {
   // New Modal Actions
   setConfigModalOpen: (val: boolean) => void
   setPendingDownload: (val: ProbeResult | null) => void
+  openInterceptedDownload: (probe: ProbeResult) => void
   
   // Async Actions
   fetchTasks: () => Promise<void>
@@ -67,6 +70,7 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
   setDetailedTaskId: (detailedTaskId) => set({ detailedTaskId }),
   setConfigModalOpen: (configModalOpen) => set({ configModalOpen }),
   setPendingDownload: (pendingDownload) => set({ pendingDownload }),
+  openInterceptedDownload: (probe) => set({ pendingDownload: probe, configModalOpen: true }),
 
   fetchTasks: async () => {
     try {
@@ -218,11 +222,31 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
 
   initSSE: () => {
     const eventSource = new EventSource(`${API_BASE}/events`)
+    const prevStatuses = new Map<number, DownloadTask['status']>()
 
     eventSource.onmessage = (event) => {
       try {
-        const data = JSON.parse(event.data)
+        const data = JSON.parse(event.data) as DownloadTask[]
         set({ tasks: data, error: null })
+
+        if (isTauri()) {
+          import('@tauri-apps/plugin-notification').then(({ sendNotification }) => {
+            for (const task of data) {
+              const prev = prevStatuses.get(task.id)
+              if (prev !== 'completed' && task.status === 'completed') {
+                sendNotification({
+                  title: 'Download Complete',
+                  body: task.filename,
+                })
+              }
+              prevStatuses.set(task.id, task.status)
+            }
+          })
+        } else {
+          for (const task of data) {
+            prevStatuses.set(task.id, task.status)
+          }
+        }
       } catch (err) {
         console.error('SSE Parse Error', err)
       }

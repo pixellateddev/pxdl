@@ -9,6 +9,8 @@
     "core:default",
     "shell:default",
     "log:default",
+    "notification:default",
+    "core:tray:default",
     {
       "identifier": "shell:allow-execute",
       "allow": [

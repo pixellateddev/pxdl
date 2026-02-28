@@ -16,6 +16,11 @@
       "cache": false,
       "persistent": true
     },
+    "pxdl-desktop#dev": {
+      "dependsOn": ["pxdl-daemon#build:sidecar"],
+      "cache": false,
+      "persistent": true
+    },
     "tauri": {},
     "lint": {
       "dependsOn": ["^lint"]

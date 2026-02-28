@@ -9,6 +9,7 @@ import { TaskList } from '../features/task-list'
 import { DownloadConfigModal } from '../features/download-config-modal'
 import { TaskDetailsModal } from '../features/task-details-modal'
 import { Container, Box } from '@mantine/core'
+import type { ProbeResult } from '@pxdl/types'
 
 export const Dashboard: FC = () => {
   const { initSSE } = useDownloadStore()
@@ -17,12 +18,30 @@ export const Dashboard: FC = () => {
     return initSSE()
   }, [initSSE])
 
+  useEffect(() => {
+    if (!('__TAURI_INTERNALS__' in window)) return
+
+    let unlisten: (() => void) | undefined
+
+    import('@tauri-apps/api/event').then(({ listen }) => {
+      listen<ProbeResult>('download:intercept', (e) => {
+        useDownloadStore.getState().openInterceptedDownload(e.payload)
+      }).then((fn) => {
+        unlisten = fn
+      })
+    })
+
+    return () => {
+      unlisten?.()
+    }
+  }, [])
+
   return (
     <Box pb={60}> {/* Space for fixed StatusBar */}
       <Container size="md" py="md">
         <GlobalHeader />
         <Toolbar />
-        
+
         <Box component="main">
           <SearchBar />
           <TaskList />
@@ -32,7 +51,7 @@ export const Dashboard: FC = () => {
         <DownloadConfigModal />
         <TaskDetailsModal />
       </Container>
-      
+
       <StatusBar />
     </Box>
   )

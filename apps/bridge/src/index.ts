@@ -1,6 +1,7 @@
 import { readSync, writeSync } from 'node:fs'
 
 const DAEMON = 'http://localhost:18281'
+const TAURI = 'http://localhost:18282'
 
 function readBytes(n: number): Buffer {
   const buf = Buffer.alloc(n)
@@ -29,7 +30,22 @@ const msgBuf = readBytes(msgLen)
 const msg = JSON.parse(msgBuf.toString('utf8'))
 
 try {
-  if (msg.type === 'PROBE') {
+  if (msg.type === 'INTERCEPT') {
+    // 1. Probe the URL via daemon
+    const probeRes = await fetch(`${DAEMON}/probe?url=${encodeURIComponent(msg.url as string)}`)
+    if (!probeRes.ok) throw new Error(`Probe failed: ${probeRes.status}`)
+    const probe = await probeRes.json()
+
+    // 2. Signal Tauri to surface the window and open the modal
+    const tauriRes = await fetch(`${TAURI}/intercept`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(probe),
+    })
+    if (!tauriRes.ok) throw new Error(`Tauri signal failed: ${tauriRes.status}`)
+
+    writeMessage({ success: true })
+  } else if (msg.type === 'PROBE') {
     const res = await fetch(`${DAEMON}/probe?url=${encodeURIComponent(msg.url as string)}`)
     const data = await res.json()
     writeMessage({ success: true, data })
