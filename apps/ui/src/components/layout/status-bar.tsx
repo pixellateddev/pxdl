@@ -31,21 +31,21 @@ export const StatusBar: FC = () => {
       <Group justify="space-between" px="md">
         <Group gap="lg">
           <Group gap={6}>
-            <IconBolt size={14} color="var(--mantine-color-teal-filled)" />
+            <IconBolt size={14} color="var(--mantine-primary-color-filled)" />
             <Text size="xs" fw={600} ff="monospace">{formatBytes(totalSpeed)}/s</Text>
           </Group>
           
           <Divider orientation="vertical" />
 
           <Group gap={6}>
-            <IconChartPie size={14} color="var(--mantine-color-teal-filled)" />
+            <IconChartPie size={14} color="var(--mantine-primary-color-filled)" />
             <Text size="xs" fw={600} ff="monospace">{overallProgress.toFixed(1)}%</Text>
           </Group>
 
           <Divider orientation="vertical" />
 
           <Group gap={6}>
-            <IconHash size={14} color="var(--mantine-color-teal-filled)" />
+            <IconHash size={14} color="var(--mantine-primary-color-filled)" />
             <Text size="xs" fw={600} ff="monospace">{activeTasks.length} / {tasks.length} active</Text>
           </Group>
         </Group>
@@ -54,7 +54,7 @@ export const StatusBar: FC = () => {
           <Tooltip label={error ? 'Daemon connection lost' : 'Daemon connected and ready'}>
             <Badge 
               variant="light" 
-              color={error ? 'red' : 'teal'}
+              color={error ? 'red' : 'var(--mantine-primary-color-filled)'}
               size="sm"
               leftSection={<IconCircleFilled size={8} />}
               px={8}

@@ -20,9 +20,8 @@ export const Toolbar: FC = () => {
       <Group justify="space-between">
         <Group gap="sm">
           <Tooltip label="New Download" openDelay={500}>
-            <ActionIcon 
+            <ActionIcon
               variant="subtle"
-              color="teal"
               size="lg"
               onClick={() => setAddModalOpen(true)}
             >

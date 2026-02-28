@@ -6,11 +6,11 @@ export const GlobalHeader: FC = () => {
   return (
     <Box mb="md" pb="xs">
       <Group align="baseline" gap="xs">
-        <IconDownload size={24} color="var(--mantine-color-teal-filled)" />
+        <IconDownload size={24} color="var(--mantine-primary-color-filled)" />
         <Title order={2} style={{ letterSpacing: '-0.04em', fontSize: '1.25rem' }}>
           Pixel Downloader
         </Title>
-        <Text size="xs" fw={500} c="teal" style={{ letterSpacing: '0.05em', opacity: 0.8 }}>
+        <Text size="xs" fw={500} c="var(--mantine-primary-color-filled)" style={{ letterSpacing: '0.05em', opacity: 0.8 }}>
           V1.0
         </Text>
       </Group>

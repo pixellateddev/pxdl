@@ -71,8 +71,7 @@ export const DownloadConfigModal: FC = () => {
           <Button variant="light" color="gray" onClick={() => setConfigModalOpen(false)}>
             Cancel
           </Button>
-          <Button 
-            color="teal" 
+          <Button
             onClick={handleConfirm}
             leftSection={<IconCheck size={18} />}
           >

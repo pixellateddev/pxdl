@@ -21,12 +21,12 @@ export const TaskDetailsModal: FC = () => {
         <Stack gap="md">
           <Box p="sm" bg="var(--mantine-color-default)" style={{ borderRadius: '8px', border: '1px solid var(--mantine-color-default-border)' }}>
             <Text size="xs" c="dimmed" fw={800} mb={4} style={{ textTransform: 'uppercase' }}>Source URL</Text>
-            <Text size="xs" ff="monospace" c="teal" truncate="end">{task.url}</Text>
+            <Text size="xs" ff="monospace" c="var(--mantine-primary-color-filled)" truncate="end">{task.url}</Text>
           </Box>
 
           <Box>
             <Text size="xs" fw={800} c="dimmed" mb={8} style={{ textTransform: 'uppercase' }}>Overall Progress</Text>
-            <ProgressBar task={task} color="var(--mantine-color-teal-filled)" />
+            <ProgressBar task={task} color="var(--mantine-primary-color-filled)" />
             <Group justify="space-between" mt={4}>
               <Text size="xs" ff="monospace" fw={700}>{(task.size > 0 ? (task.downloadedBytes / task.size) * 100 : 0).toFixed(1)}%</Text>
               <Text size="xs" ff="monospace" c="dimmed">{formatBytes(task.downloadedBytes)} / {formatBytes(task.size)}</Text>
@@ -38,7 +38,7 @@ export const TaskDetailsModal: FC = () => {
           <Group grow>
             <Stack gap={2}>
               <Text size="xs" fw={800} c="dimmed" style={{ textTransform: 'uppercase' }}>Status</Text>
-              <Text size="sm" fw={600} c="teal" style={{ textTransform: 'capitalize' }}>{task.status}</Text>
+              <Text size="sm" fw={600} c="var(--mantine-primary-color-filled)" style={{ textTransform: 'capitalize' }}>{task.status}</Text>
             </Stack>
             <Stack gap={2}>
               <Text size="xs" fw={800} c="dimmed" style={{ textTransform: 'uppercase' }}>Speed</Text>
@@ -73,7 +73,7 @@ export const TaskDetailsModal: FC = () => {
                           borderRadius: '2px', 
                           backgroundColor: s.status === 'downloading' 
                             ? 'var(--mantine-color-green-filled)' 
-                            : 'var(--mantine-color-teal-filled)',
+                            : 'var(--mantine-primary-color-filled)',
                           // Progress as opacity (minimum 0.1 for visibility)
                           opacity: Math.max(0.1, sProgress),
                           outline: s.status === 'downloading' ? '1px solid var(--mantine-color-green-filled)' : 'none',

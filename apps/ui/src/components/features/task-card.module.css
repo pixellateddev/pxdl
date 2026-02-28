@@ -5,7 +5,7 @@
 }
 
 .card:hover {
-  border-color: var(--mantine-color-teal-filled);
+  border-color: var(--mantine-primary-color-filled);
   transform: translateY(-2px);
   box-shadow: 0 8px 16px -8px rgba(0, 0, 0, 0.4);
 }

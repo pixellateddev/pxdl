@@ -41,7 +41,7 @@ export const AddDownloadModal: FC = () => {
           />
           
           {statusMessage && (
-            <Text size="xs" c="teal" fw={500}>
+            <Text size="xs" c="var(--mantine-primary-color-filled)" fw={500}>
               {statusMessage}
             </Text>
           )}
@@ -50,9 +50,8 @@ export const AddDownloadModal: FC = () => {
             <Button variant="light" color="gray" onClick={() => setAddModalOpen(false)}>
               Cancel
             </Button>
-            <Button 
-              type="submit" 
-              color="teal" 
+            <Button
+              type="submit"
               loading={isProbing}
               leftSection={<IconDownload size={18} />}
               disabled={!newUrl}

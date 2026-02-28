@@ -127,7 +127,7 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
         notifications.show({
           title: 'Download Added',
           message: `${config.filename} has been added to the queue.`,
-          color: 'teal',
+          color: 'var(--mantine-primary-color-filled)',
         })
       } else {
         const data = await res.json()

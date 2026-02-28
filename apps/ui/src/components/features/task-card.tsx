@@ -25,11 +25,11 @@ import {
 import styles from './task-card.module.css'
 
 const STATUS_CONFIG: Record<string, { icon: any; color: string }> = {
-  pending: { icon: IconCircle, color: 'gray' },
-  downloading: { icon: IconDownload, color: 'green' },
-  paused: { icon: IconPlayerPause, color: 'yellow' },
-  completed: { icon: IconCheck, color: 'teal' },
-  failed: { icon: IconAlertCircle, color: 'red' },
+  pending: { icon: IconCircle, color: 'var(--mantine-color-gray-filled)' },
+  downloading: { icon: IconDownload, color: 'var(--mantine-color-green-filled)' },
+  paused: { icon: IconPlayerPause, color: 'var(--mantine-color-yellow-filled)' },
+  completed: { icon: IconCheck, color: 'var(--mantine-primary-color-filled)' },
+  failed: { icon: IconAlertCircle, color: 'var(--mantine-color-red-filled)' },
 }
 
 interface TaskCardProps {
@@ -52,13 +52,13 @@ export const TaskCard: FC<TaskCardProps> = ({ task }) => {
     >
       <div 
         className={styles.statusLine} 
-        style={{ backgroundColor: `var(--mantine-color-${statusCfg.color}-filled)` }} 
+        style={{ backgroundColor: statusCfg.color }}
       />
       
       <Stack gap="xs">
         <Group justify="space-between" wrap="nowrap">
           <Group gap="sm" wrap="nowrap" style={{ flex: 1, overflow: 'hidden' }}>
-            <StatusIcon size={16} color={`var(--mantine-color-${statusCfg.color}-filled)`} />
+            <StatusIcon size={16} color={statusCfg.color} />
             <Text size="sm" fw={700} truncate="end">{task.filename}</Text>
           </Group>
 
@@ -77,7 +77,7 @@ export const TaskCard: FC<TaskCardProps> = ({ task }) => {
             {task.status !== 'completed' && (
               <ActionIcon 
                 variant="subtle" 
-                color={task.status === 'paused' ? 'teal' : 'yellow'}
+                color={task.status === 'paused' ? 'var(--mantine-primary-color-filled)' : 'yellow'}
                 onClick={() => togglePause(task)}
                 size="sm"
               >
@@ -96,7 +96,7 @@ export const TaskCard: FC<TaskCardProps> = ({ task }) => {
         </Group>
 
         <Box>
-          <ProgressBar task={task} color={`var(--mantine-color-${statusCfg.color}-filled)`} />
+          <ProgressBar task={task} color={statusCfg.color} />
           <Group justify="space-between" mt={4}>
             <Text size="xs" ff="monospace" fw={700}>{progress.toFixed(1)}%</Text>
             <Text size="xs" c="dimmed" ff="monospace">

@@ -29,11 +29,11 @@ import {
 import styles from './task-list.module.css'
 
 const STATUS_CONFIG: Record<string, { icon: any; color: string }> = {
-  pending: { icon: IconCircle, color: 'gray' },
-  downloading: { icon: IconDownload, color: 'green' },
-  paused: { icon: IconPlayerPause, color: 'yellow' },
-  completed: { icon: IconCheck, color: 'teal' },
-  failed: { icon: IconAlertCircle, color: 'red' },
+  pending: { icon: IconCircle, color: 'var(--mantine-color-gray-filled)' },
+  downloading: { icon: IconDownload, color: 'var(--mantine-color-green-filled)' },
+  paused: { icon: IconPlayerPause, color: 'var(--mantine-color-yellow-filled)' },
+  completed: { icon: IconCheck, color: 'var(--mantine-primary-color-filled)' },
+  failed: { icon: IconAlertCircle, color: 'var(--mantine-color-red-filled)' },
 }
 
 export const TaskList: FC = () => {
@@ -84,7 +84,7 @@ export const TaskList: FC = () => {
     return (
       <Table.Tr key={task.id} className={styles.row}>
         <Table.Td style={{ width: 40 }}>
-          <StatusIcon size={16} color={`var(--mantine-color-${statusCfg.color}-filled)`} />
+          <StatusIcon size={16} color={statusCfg.color} />
         </Table.Td>
         
         <Table.Td>
@@ -93,12 +93,12 @@ export const TaskList: FC = () => {
         
         <Table.Td style={{ minWidth: 250 }}>
           <Box mt={4}>
-            <ProgressBar task={task} color={`var(--mantine-color-${statusCfg.color}-filled)`} />
+            <ProgressBar task={task} color={statusCfg.color} />
           </Box>
         </Table.Td>
 
         <Table.Td style={{ width: 100 }}>
-          <Text size="xs" fw={600} ff="monospace" ta="right" c={task.status === 'downloading' ? 'teal' : 'dimmed'} style={{ whiteSpace: 'nowrap' }}>
+          <Text size="xs" fw={600} ff="monospace" ta="right" c={task.status === 'downloading' ? 'var(--mantine-primary-color-filled)' : 'dimmed'} style={{ whiteSpace: 'nowrap' }}>
             {task.status === 'downloading' ? `${formatBytes(task.speed || 0)}/s` : '—'}
           </Text>
         </Table.Td>
@@ -125,7 +125,7 @@ export const TaskList: FC = () => {
             {task.status !== 'completed' && (
               <ActionIcon 
                 variant="subtle" 
-                color={task.status === 'paused' ? 'teal' : 'yellow'}
+                color={task.status === 'paused' ? 'var(--mantine-primary-color-filled)' : 'yellow'}
                 onClick={() => togglePause(task)}
                 size="sm"
               >
