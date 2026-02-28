@@ -1,0 +1,9 @@
+{
+  "name": "dev.pxdl.bridge",
+  "description": "pxdl Native Messaging Bridge",
+  "path": "/usr/local/bin/pxdl-bridge",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://faedhkjilbloikbibkfmgaeihipndiif/"
+  ]
+}

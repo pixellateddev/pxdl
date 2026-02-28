@@ -5,6 +5,10 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**", "bin/**"]
     },
+    "pxdl-extension#build": {
+      "dependsOn": ["^build"],
+      "outputs": ["browsers/chrome/dist/**", "browsers/firefox/dist/**"]
+    },
     "build:sidecar": {
       "outputs": ["../desktop/src-tauri/bin/**"]
     },

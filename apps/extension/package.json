@@ -1,0 +1,26 @@
+{
+  "name": "pxdl-extension",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "vite build --config browsers/chrome/vite.config.ts",
+    "dev": "vite build --watch --config browsers/chrome/vite.config.ts",
+    "gen-icons": "bun scripts/gen-icons.ts"
+  },
+  "dependencies": {
+    "@mantine/core": "^8.3.15",
+    "@mantine/hooks": "^8.3.15",
+    "@pxdl/types": "workspace:*",
+    "@pxdl/utils": "workspace:*",
+    "@tabler/icons-react": "^3.37.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.320",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.0.0",
+    "vite": "^6.0.0"
+  }
+}

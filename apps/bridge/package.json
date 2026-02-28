@@ -1,0 +1,13 @@
+{
+  "name": "pxdl-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "bun build --compile src/index.ts --outfile bin/pxdl-bridge",
+    "install:host:chrome": "mkdir -p \"$HOME/Library/Application Support/Google/Chrome/NativeMessagingHosts\" && cp host/dev.pxdl.bridge.json \"$HOME/Library/Application Support/Google/Chrome/NativeMessagingHosts/\"",
+    "install:host:chromium": "mkdir -p \"$HOME/Library/Application Support/Chromium/NativeMessagingHosts\" && cp host/dev.pxdl.bridge.json \"$HOME/Library/Application Support/Chromium/NativeMessagingHosts/\""
+  },
+  "dependencies": {
+    "@pxdl/types": "workspace:*"
+  }
+}

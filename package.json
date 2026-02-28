@@ -12,7 +12,7 @@
     "build": "turbo build",
     "lint": "turbo lint",
     "format": "turbo format",
-    "install:global": "bun run build && sudo mv apps/cli/bin/pxdl apps/daemon/bin/pxdl-daemon /usr/local/bin/"
+    "install:global": "turbo build --filter=!pxdl-desktop && sudo mv apps/cli/bin/pxdl apps/daemon/bin/pxdl-daemon apps/bridge/bin/pxdl-bridge /usr/local/bin/ && bun run --cwd apps/bridge install:host:chrome"
   },
   "devDependencies": {
     "turbo": "latest",
