@@ -5,11 +5,11 @@ import { IconFolder, IconFileText, IconCheck } from '@tabler/icons-react'
 import { formatBytes } from '@pxdl/utils'
 
 export const DownloadConfigModal: FC = () => {
-  const { 
-    configModalOpen, 
-    setConfigModalOpen, 
-    pendingDownload, 
-    confirmDownload 
+  const {
+    configModalOpen,
+    setConfigModalOpen,
+    pendingDownload,
+    confirmDownload
   } = useDownloadStore()
 
   const [filename, setFilename] = useState('')
@@ -18,7 +18,7 @@ export const DownloadConfigModal: FC = () => {
   useEffect(() => {
     if (pendingDownload) {
       setFilename(pendingDownload.filename)
-      setDirectory('') // Empty means use daemon default, or we can hardcode a common one
+      setDirectory('')
     }
   }, [pendingDownload])
 

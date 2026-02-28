@@ -1,19 +1,16 @@
 import type { FC } from 'react'
 import { useDownloadStore } from '../../store/use-download-store'
-import { Group, Paper, Tooltip, ActionIcon, SegmentedControl, Center, Divider } from '@mantine/core'
-import { 
-  IconPlus, 
-  IconPlayerPause, 
-  IconPlayerPlay, 
-  IconSettings, 
-  IconLayoutList, 
-  IconLayoutGrid,
+import { Group, Paper, Tooltip, ActionIcon, Divider } from '@mantine/core'
+import {
+  IconPlus,
+  IconPlayerPause,
+  IconPlayerPlay,
+  IconSettings,
   IconTrash,
-  IconX
 } from '@tabler/icons-react'
 
 export const Toolbar: FC = () => {
-  const { addModalOpen, setAddModalOpen, viewMode, setViewMode } = useDownloadStore()
+  const { setAddModalOpen, pauseAll, resumeAll, clearCompleted } = useDownloadStore()
 
   return (
     <Paper p="xs" withBorder mb="lg" bg="var(--mantine-color-default)">
@@ -30,58 +27,31 @@ export const Toolbar: FC = () => {
           </Tooltip>
 
           <Divider orientation="vertical" mx={4} />
-          
+
           <Tooltip label="Pause All" openDelay={500}>
-            <ActionIcon variant="subtle" color="gray" size="lg">
+            <ActionIcon variant="subtle" color="yellow" size="lg" onClick={pauseAll}>
               <IconPlayerPause size={22} />
             </ActionIcon>
           </Tooltip>
 
           <Tooltip label="Resume All" openDelay={500}>
-            <ActionIcon variant="subtle" color="gray" size="lg">
+            <ActionIcon variant="subtle" color="green" size="lg" onClick={resumeAll}>
               <IconPlayerPlay size={22} />
             </ActionIcon>
           </Tooltip>
 
           <Tooltip label="Clear Completed" openDelay={500}>
-            <ActionIcon variant="subtle" color="gray" size="lg">
+            <ActionIcon variant="subtle" color="red" size="lg" onClick={clearCompleted}>
               <IconTrash size={22} />
             </ActionIcon>
           </Tooltip>
         </Group>
 
-        <Group gap="lg">
-          <SegmentedControl
-            size="sm"
-            variant="default"
-            value={viewMode}
-            onChange={(value) => setViewMode(value as 'table' | 'card')}
-            data={[
-              {
-                value: 'table',
-                label: (
-                  <Center>
-                    <IconLayoutList size={18} />
-                  </Center>
-                ),
-              },
-              {
-                value: 'card',
-                label: (
-                  <Center>
-                    <IconLayoutGrid size={18} />
-                  </Center>
-                ),
-              },
-            ]}
-          />
-
-          <Tooltip label="Settings" openDelay={500}>
-            <ActionIcon variant="subtle" color="gray" size="lg">
-              <IconSettings size={22} />
-            </ActionIcon>
-          </Tooltip>
-        </Group>
+        <Tooltip label="Settings" openDelay={500}>
+          <ActionIcon variant="subtle" color="gray" size="lg">
+            <IconSettings size={22} />
+          </ActionIcon>
+        </Tooltip>
       </Group>
     </Paper>
   )

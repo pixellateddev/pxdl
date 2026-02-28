@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs'
+import { existsSync, renameSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, parse } from 'node:path'
 import { DAEMON_PORT, probeUrl, repository } from '@pxdl/core'
@@ -163,11 +163,55 @@ Bun.serve({
       }
       repository.updateStatus(id, 'paused')
       response = Response.json({ success: true })
+    } else if (req.method === 'POST' && url.pathname === '/pause-all') {
+      const downloading = repository.getAllDownloads().filter((t) => t.status === 'downloading')
+      for (const task of downloading) {
+        const downloader = activeDownloaders.get(task.id)
+        if (downloader) {
+          downloader.stop()
+          activeDownloaders.delete(task.id)
+        }
+        repository.updateStatus(task.id, 'paused')
+      }
+      response = Response.json({ success: true, paused: downloading.length })
     } else if (req.method === 'POST' && url.pathname === '/resume') {
       const { id } = (await req.json()) as { id: number }
       repository.updateStatus(id, 'pending')
       triggerScheduler()
       response = Response.json({ success: true })
+    } else if (req.method === 'POST' && url.pathname === '/resume-all') {
+      const paused = repository.getAllDownloads().filter((t) => t.status === 'paused')
+      for (const task of paused) {
+        repository.updateStatus(task.id, 'pending')
+      }
+      triggerScheduler()
+      response = Response.json({ success: true, queued: paused.length })
+    } else if (req.method === 'POST' && url.pathname === '/rename') {
+      const { id, filename } = (await req.json()) as { id: number; filename: string }
+      const task = repository.getDownloadById(id)
+      if (!task) {
+        response = Response.json({ success: false, message: 'Task not found' }, { status: 404 })
+      } else {
+        const downloader = activeDownloaders.get(id)
+        if (downloader) {
+          downloader.rename(filename)
+        } else {
+          const oldFilePath = join(task.directory, task.filename)
+          const oldTempPath = join(task.directory, `.${task.filename}.pxdl`)
+          const newFilePath = join(task.directory, filename)
+          const newTempPath = join(task.directory, `.${filename}.pxdl`)
+          if (existsSync(oldFilePath)) renameSync(oldFilePath, newFilePath)
+          if (existsSync(oldTempPath)) renameSync(oldTempPath, newTempPath)
+        }
+        repository.renameDownload(id, filename)
+        response = Response.json({ success: true })
+      }
+    } else if (req.method === 'POST' && url.pathname === '/clear-completed') {
+      const completed = repository.getAllDownloads().filter((t) => t.status === 'completed')
+      for (const task of completed) {
+        repository.deleteDownload(task.id)
+      }
+      response = Response.json({ success: true, cleared: completed.length })
     } else if (req.method === 'POST' && url.pathname === '/delete') {
       const { id, deleteFile } = (await req.json()) as { id: number; deleteFile?: boolean }
       const task = repository.getDownloadById(id)

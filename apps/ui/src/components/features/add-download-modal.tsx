@@ -1,28 +1,47 @@
-import { type FC, type FormEvent } from 'react'
+import { type FC, type FormEvent, useState } from 'react'
 import { Modal, TextInput, Button, Group, Text, Stack } from '@mantine/core'
 import { useDownloadStore } from '../../store/use-download-store'
 import { IconLink, IconDownload } from '@tabler/icons-react'
 
+const isValidUrl = (value: string) => {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'http:' || url.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
 export const AddDownloadModal: FC = () => {
-  const { 
-    addModalOpen, 
-    setAddModalOpen, 
-    newUrl, 
-    setNewUrl, 
-    addDownload, 
+  const {
+    addModalOpen,
+    setAddModalOpen,
+    newUrl,
+    setNewUrl,
+    addDownload,
     isProbing,
     statusMessage
   } = useDownloadStore()
 
+  const [touched, setTouched] = useState(false)
+
+  const urlError = touched && newUrl && !isValidUrl(newUrl) ? 'Please enter a valid http/https URL' : null
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
-    if (newUrl) addDownload(newUrl)
+    setTouched(true)
+    if (newUrl && isValidUrl(newUrl)) addDownload(newUrl)
+  }
+
+  const handleClose = () => {
+    setAddModalOpen(false)
+    setTouched(false)
   }
 
   return (
     <Modal
       opened={addModalOpen}
-      onClose={() => setAddModalOpen(false)}
+      onClose={handleClose}
       title={<Text fw={700}>Add New Download</Text>}
       centered
       size="md"
@@ -35,11 +54,13 @@ export const AddDownloadModal: FC = () => {
             description="Enter the direct link to the file"
             leftSection={<IconLink size={16} />}
             value={newUrl}
-            onChange={(e) => setNewUrl(e.target.value)}
+            onChange={(e) => { setNewUrl(e.target.value); setTouched(false) }}
+            onBlur={() => { if (newUrl) setTouched(true) }}
+            error={urlError}
             disabled={isProbing}
-            autoFocus
+            data-autofocus
           />
-          
+
           {statusMessage && (
             <Text size="xs" c="var(--mantine-primary-color-filled)" fw={500}>
               {statusMessage}
@@ -47,14 +68,14 @@ export const AddDownloadModal: FC = () => {
           )}
 
           <Group justify="flex-end" mt="md">
-            <Button variant="light" color="gray" onClick={() => setAddModalOpen(false)}>
+            <Button variant="light" color="gray" onClick={handleClose}>
               Cancel
             </Button>
             <Button
               type="submit"
               loading={isProbing}
               leftSection={<IconDownload size={18} />}
-              disabled={!newUrl}
+              disabled={!newUrl || !!urlError}
             >
               Probe URL
             </Button>

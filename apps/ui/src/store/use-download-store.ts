@@ -12,7 +12,6 @@ interface DownloadState {
   newUrl: string
   isProbing: boolean
   searchQuery: string
-  viewMode: 'table' | 'card'
   detailedTaskId: number | null
   
   // New Modal State
@@ -27,7 +26,6 @@ interface DownloadState {
   setNewUrl: (url: string) => void
   setIsProbing: (val: boolean) => void
   setSearchQuery: (query: string) => void
-  setViewMode: (mode: 'table' | 'card') => void
   setDetailedTaskId: (id: number | null) => void
   
   // New Modal Actions
@@ -39,7 +37,11 @@ interface DownloadState {
   addDownload: (url: string) => Promise<void>
   confirmDownload: (config: { filename: string; directory: string }) => Promise<void>
   togglePause: (task: DownloadTask) => Promise<void>
-  deleteTask: (id: number) => Promise<void>
+  pauseAll: () => Promise<void>
+  resumeAll: () => Promise<void>
+  clearCompleted: () => Promise<void>
+  renameTask: (id: number, filename: string) => Promise<void>
+  deleteTask: (id: number, deleteFile?: boolean) => Promise<void>
   initSSE: () => () => void
 }
 
@@ -51,7 +53,6 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
   newUrl: '',
   isProbing: false,
   searchQuery: '',
-  viewMode: 'table',
   detailedTaskId: null,
   configModalOpen: false,
   pendingDownload: null,
@@ -59,11 +60,10 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
   setTasks: (tasks) => set({ tasks }),
   setError: (error) => set({ error }),
   setStatusMessage: (statusMessage) => set({ statusMessage }),
-  setAddModalOpen: (addModalOpen) => set({ addModalOpen, error: null }),
+  setAddModalOpen: (addModalOpen) => set({ addModalOpen, error: null, newUrl: addModalOpen ? get().newUrl : '' }),
   setNewUrl: (newUrl) => set({ newUrl }),
   setIsProbing: (isProbing) => set({ isProbing }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
-  setViewMode: (viewMode) => set({ viewMode }),
   setDetailedTaskId: (detailedTaskId) => set({ detailedTaskId }),
   setConfigModalOpen: (configModalOpen) => set({ configModalOpen }),
   setPendingDownload: (pendingDownload) => set({ pendingDownload }),
@@ -159,13 +159,52 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
     }
   },
 
-  deleteTask: async (id: number) => {
-    if (!window.confirm('Delete this task?')) return
+  pauseAll: async () => {
+    try {
+      await fetch(`${API_BASE}/pause-all`, { method: 'POST' })
+    } catch (err) {
+      set({ error: 'Pause all failed' })
+    }
+  },
+
+  resumeAll: async () => {
+    try {
+      await fetch(`${API_BASE}/resume-all`, { method: 'POST' })
+    } catch (err) {
+      set({ error: 'Resume all failed' })
+    }
+  },
+
+  clearCompleted: async () => {
+    try {
+      await fetch(`${API_BASE}/clear-completed`, { method: 'POST' })
+    } catch (err) {
+      set({ error: 'Clear completed failed' })
+    }
+  },
+
+  renameTask: async (id: number, filename: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/rename`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, filename }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        notifications.show({ title: 'Rename failed', message: data.message, color: 'red' })
+      }
+    } catch (err) {
+      set({ error: 'Rename failed' })
+    }
+  },
+
+  deleteTask: async (id: number, deleteFile = false) => {
     try {
       await fetch(`${API_BASE}/delete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, deleteFile: false }),
+        body: JSON.stringify({ id, deleteFile }),
       })
       notifications.show({
         title: 'Task deleted',

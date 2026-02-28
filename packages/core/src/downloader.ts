@@ -253,4 +253,13 @@ export class Downloader {
   stop(): void {
     this.abortController.abort()
   }
+
+  rename(filename: string): void {
+    const newFilePath = join(this.task.directory, filename)
+    const newTempPath = join(this.task.directory, `.${filename}.pxdl`)
+    if (existsSync(this.tempPath)) renameSync(this.tempPath, newTempPath)
+    this.filePath = newFilePath
+    this.tempPath = newTempPath
+    this.task = { ...this.task, filename }
+  }
 }

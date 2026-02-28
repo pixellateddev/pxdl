@@ -98,6 +98,10 @@ export const repository = {
     })
   },
 
+  renameDownload(id: number, filename: string): void {
+    db.prepare('UPDATE downloads SET filename = ? WHERE id = ?').run(filename, id)
+  },
+
   updateStatus(id: number, status: DownloadTask['status']): void {
     db.prepare('UPDATE downloads SET status = ?, speed = 0, eta = 0 WHERE id = ?').run(status, id)
   },
