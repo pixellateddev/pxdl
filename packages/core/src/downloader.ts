@@ -2,7 +2,6 @@ import { closeSync, existsSync, openSync, renameSync, truncateSync, writeSync } 
 import { join } from 'node:path'
 import type { DownloadTask, SegmentTask } from '@pxdl/types'
 import { repository } from './db'
-import { notify } from './notifier'
 
 const SEGMENT_COUNT = 8
 const USER_AGENT =
@@ -44,9 +43,6 @@ export class Downloader {
       }
 
       repository.markCompleted(this.task.id, this.task.size || this.downloadedBytes)
-
-      // Success notification
-      await notify('Download Complete', `${this.task.filename} finished successfully.`)
     } catch (error: any) {
       if (error.name === 'AbortError') {
         repository.updateStatus(this.task.id, 'paused')
@@ -55,9 +51,6 @@ export class Downloader {
 
       console.error(`Download failed for ${this.task.filename}:`, error.message)
       repository.updateStatus(this.task.id, 'failed')
-
-      // Failure notification
-      await notify('Download Failed', `${this.task.filename}: ${error.message}`)
       throw error
     }
   }
