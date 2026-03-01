@@ -1,7 +1,7 @@
 import { type FC, useEffect, useState } from 'react'
 import { Modal, Button, TextInput, Stack, Group, Text, Box, Input } from '@mantine/core'
 import { useDownloadStore } from '../../store/use-download-store'
-import { IconFolder, IconFileText, IconCheck, IconChevronRight } from '@tabler/icons-react'
+import { IconFolder, IconFileText, IconDownload, IconChevronRight } from '@tabler/icons-react'
 import { formatBytes } from '@pxdl/utils'
 
 const isTauri = () => '__TAURI_INTERNALS__' in window
@@ -123,10 +123,10 @@ export const DownloadConfigModal: FC = () => {
           </Button>
           <Button
             onClick={handleConfirm}
-            leftSection={<IconCheck size={18} />}
+            leftSection={<IconDownload size={18} />}
             disabled={!!filenameError}
           >
-            Start Download
+            Download
           </Button>
         </Group>
       </Stack>

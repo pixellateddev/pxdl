@@ -1,5 +1,5 @@
 import { Button, Group, Modal, Stack, Text, TextInput } from '@mantine/core'
-import { IconDownload, IconLink } from '@tabler/icons-react'
+import { IconPlus, IconLink } from '@tabler/icons-react'
 import { type FC, type FormEvent, useState } from 'react'
 import { useDownloadStore } from '../../store/use-download-store'
 const isValidUrl = (value: string) => {
@@ -72,10 +72,11 @@ export const AddDownloadModal: FC = () => {
             <Button
               type='submit'
               loading={isProbing}
-              leftSection={<IconDownload size={18} />}
+              loaderProps={{ type: 'dots' }}
+              leftSection={<IconPlus size={18} />}
               disabled={!newUrl || !!urlError}
             >
-              Probe URL
+              Add
             </Button>
           </Group>
         </Stack>
