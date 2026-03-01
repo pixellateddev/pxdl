@@ -30,11 +30,17 @@ jobs:
         run: |
           bun run --cwd apps/daemon build:sidecar:darwin-arm64
           bun run --cwd apps/daemon build:sidecar:darwin-x64
+          lipo -create -output apps/desktop/src-tauri/bin/pxdl-daemon-universal-apple-darwin \
+            apps/desktop/src-tauri/bin/pxdl-daemon-aarch64-apple-darwin \
+            apps/desktop/src-tauri/bin/pxdl-daemon-x86_64-apple-darwin
 
       - name: Build bridge sidecars (macOS)
         run: |
           bun run --cwd apps/bridge build:sidecar:darwin-arm64
           bun run --cwd apps/bridge build:sidecar:darwin-x64
+          lipo -create -output apps/desktop/src-tauri/bin/pxdl-bridge-universal-apple-darwin \
+            apps/desktop/src-tauri/bin/pxdl-bridge-aarch64-apple-darwin \
+            apps/desktop/src-tauri/bin/pxdl-bridge-x86_64-apple-darwin
 
       - name: Build UI
         run: bun run --filter pxdl-ui build
