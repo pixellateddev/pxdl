@@ -6,6 +6,23 @@ import { formatBytes } from '@pxdl/utils'
 
 const isTauri = () => '__TAURI_INTERNALS__' in window
 
+const splitExt = (name: string) => {
+  const dot = name.lastIndexOf('.')
+  return dot > 0
+    ? { base: name.slice(0, dot), ext: name.slice(dot) }
+    : { base: name, ext: '' }
+}
+
+const decodeFilename = (name: string) => {
+  try { return decodeURIComponent(name) } catch { return name }
+}
+
+const validateBasename = (name: string) => {
+  if (!name.trim()) return 'Filename cannot be empty'
+  if (/[/\\:*?"<>|]/.test(name)) return 'Filename contains invalid characters: / \\ : * ? " < > |'
+  return null
+}
+
 export const DownloadConfigModal: FC = () => {
   const {
     downloadModalOpen,
@@ -15,12 +32,15 @@ export const DownloadConfigModal: FC = () => {
     config,
   } = useDownloadStore()
 
-  const [filename, setFilename] = useState('')
+  const [basename, setBasename] = useState('')
+  const [ext, setExt] = useState('')
   const [directory, setDirectory] = useState('')
 
   useEffect(() => {
     if (pendingDownload) {
-      setFilename(pendingDownload.filename)
+      const { base, ext } = splitExt(decodeFilename(pendingDownload.filename))
+      setBasename(base)
+      setExt(ext)
       setDirectory(config?.defaultDownloadDir ?? '')
     }
   }, [pendingDownload, config])
@@ -31,8 +51,11 @@ export const DownloadConfigModal: FC = () => {
     if (typeof selected === 'string') setDirectory(selected)
   }
 
+  const filenameError = validateBasename(basename)
+
   const handleConfirm = () => {
-    confirmDownload({ filename, directory })
+    if (filenameError) return
+    confirmDownload({ filename: basename + ext, directory })
   }
 
   return (
@@ -42,10 +65,7 @@ export const DownloadConfigModal: FC = () => {
       title={<Text fw={700}>Download Configuration</Text>}
       centered
       size="md"
-      overlayProps={{
-        backgroundOpacity: 0.55,
-        blur: 3,
-      }}
+      overlayProps={{ backgroundOpacity: 0.6 }}
     >
       <Stack gap="md">
         <Box p="sm" bg="var(--mantine-color-default)" style={{ borderRadius: '8px', border: '1px solid var(--mantine-color-default-border)' }}>
@@ -62,9 +82,16 @@ export const DownloadConfigModal: FC = () => {
         <TextInput
           label="File Name"
           placeholder="Enter filename..."
-          value={filename}
-          onChange={(e) => setFilename(e.target.value)}
+          value={basename}
+          onChange={(e) => setBasename(e.target.value)}
           leftSection={<IconFileText size={16} />}
+          error={filenameError}
+          rightSection={
+            ext ? (
+              <Text size="sm" c="dimmed" ff="monospace" pr={4}>{ext}</Text>
+            ) : undefined
+          }
+          rightSectionWidth={ext ? ext.length * 9 + 16 : undefined}
         />
 
         {isTauri() ? (
@@ -97,6 +124,7 @@ export const DownloadConfigModal: FC = () => {
           <Button
             onClick={handleConfirm}
             leftSection={<IconCheck size={18} />}
+            disabled={!!filenameError}
           >
             Start Download
           </Button>

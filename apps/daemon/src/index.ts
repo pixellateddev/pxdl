@@ -1,4 +1,4 @@
-import { existsSync, renameSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, parse } from 'node:path'
 import { CONFIG_DIR, DAEMON_PORT, probeUrl, repository } from '@pxdl/core'
@@ -11,15 +11,15 @@ const CONFIG_FILE = join(CONFIG_DIR, 'config.json')
 
 const loadConfig = (): DaemonConfig => {
   try {
-    return JSON.parse(require('fs').readFileSync(CONFIG_FILE, 'utf8'))
+    return JSON.parse(readFileSync(CONFIG_FILE, 'utf8'))
   } catch {
     return { defaultDownloadDir: join(homedir(), 'Downloads') }
   }
 }
 
 const saveConfig = (config: DaemonConfig): void => {
-  require('fs').mkdirSync(CONFIG_DIR, { recursive: true })
-  require('fs').writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2))
+  mkdirSync(CONFIG_DIR, { recursive: true })
+  writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2))
 }
 
 let config = loadConfig()

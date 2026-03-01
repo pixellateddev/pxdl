@@ -12,7 +12,7 @@ export const SearchBar: FC = () => {
     <Box mb="md">
       <TextInput
         placeholder="Filter tasks by name or URL..."
-        leftSection={<IconSearch size={16} style={{ opacity: 0.5 }} />}
+        leftSection={<IconSearch size={16} />}
         rightSection={
           searchQuery ? (
             <ActionIcon variant="transparent" color="gray" onClick={() => setSearchQuery('')}>
@@ -22,7 +22,7 @@ export const SearchBar: FC = () => {
         }
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
-        variant="filled"
+        variant="default"
         size="sm"
       />
     </Box>

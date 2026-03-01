@@ -126,6 +126,7 @@ export const TaskDetailsModal: FC = () => {
       }
       centered
       size="xl"
+      overlayProps={{ backgroundOpacity: 0.6 }}
     >
       {task && (
         <Stack gap="md">

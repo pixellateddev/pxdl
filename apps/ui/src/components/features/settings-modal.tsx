@@ -34,7 +34,7 @@ export const SettingsModal: FC = () => {
       title={<Text fw={700}>Settings</Text>}
       centered
       size="md"
-      overlayProps={{ backgroundOpacity: 0.55, blur: 3 }}
+      overlayProps={{ backgroundOpacity: 0.6 }}
     >
       <Stack gap="md">
         <Text size="xs" c="dimmed" fw={700} style={{ textTransform: 'uppercase' }}>

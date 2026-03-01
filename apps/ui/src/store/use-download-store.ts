@@ -134,11 +134,6 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
 
       if (res.ok) {
         set({ downloadModalOpen: false, pendingDownload: null })
-        notifications.show({
-          title: 'Download Added',
-          message: `${config.filename} has been added to the queue.`,
-          color: 'var(--mantine-primary-color-filled)',
-        })
       } else {
         const data = await res.json()
         notifications.show({
@@ -216,19 +211,19 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, deleteFile }),
       })
-      notifications.show({
-        title: 'Task deleted',
-        message: 'The download task has been removed.',
-        color: 'gray',
-      })
     } catch (err) {
       set({ error: 'Delete failed' })
     }
   },
 
   initSSE: () => {
-    // Fetch config once on init
-    get().fetchConfig()
+    // Fetch config, retrying until daemon is ready
+    const tryFetchConfig = () => {
+      get().fetchConfig().then(() => {
+        if (!get().config) setTimeout(tryFetchConfig, 1000)
+      })
+    }
+    tryFetchConfig()
 
     const eventSource = new EventSource(`${API_BASE}/events`)
     const prevStatuses = new Map<number, DownloadTask['status']>()
