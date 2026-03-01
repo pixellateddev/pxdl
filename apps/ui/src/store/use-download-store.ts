@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { DownloadTask, ProbeResult } from '@pxdl/types'
+import type { DownloadTask, ProbeResult, DaemonConfig } from '@pxdl/types'
 import { notifications } from '@mantine/notifications'
 
 const isTauri = () => '__TAURI_INTERNALS__' in window
@@ -15,9 +15,9 @@ interface DownloadState {
   isProbing: boolean
   searchQuery: string
   detailedTaskId: number | null
-  
-  // New Modal State
-  configModalOpen: boolean
+  config: DaemonConfig | null
+  settingsModalOpen: boolean  // New Modal State
+  downloadModalOpen: boolean
   pendingDownload: ProbeResult | null
   
   // Actions
@@ -31,9 +31,10 @@ interface DownloadState {
   setDetailedTaskId: (id: number | null) => void
   
   // New Modal Actions
-  setConfigModalOpen: (val: boolean) => void
+  setDownloadModalOpen: (val: boolean) => void
   setPendingDownload: (val: ProbeResult | null) => void
   openInterceptedDownload: (probe: ProbeResult) => void
+  setSettingsModalOpen: (val: boolean) => void
   
   // Async Actions
   fetchTasks: () => Promise<void>
@@ -46,6 +47,8 @@ interface DownloadState {
   renameTask: (id: number, filename: string) => Promise<void>
   deleteTask: (id: number, deleteFile?: boolean) => Promise<void>
   initSSE: () => () => void
+  fetchConfig: () => Promise<void>
+  saveConfig: (updates: Partial<DaemonConfig>) => Promise<void>
 }
 
 export const useDownloadStore = create<DownloadState>((set, get) => ({
@@ -57,7 +60,9 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
   isProbing: false,
   searchQuery: '',
   detailedTaskId: null,
-  configModalOpen: false,
+  config: null,
+  settingsModalOpen: false,
+  downloadModalOpen: false,
   pendingDownload: null,
 
   setTasks: (tasks) => set({ tasks }),
@@ -68,9 +73,10 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
   setIsProbing: (isProbing) => set({ isProbing }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
   setDetailedTaskId: (detailedTaskId) => set({ detailedTaskId }),
-  setConfigModalOpen: (configModalOpen) => set({ configModalOpen }),
+  setDownloadModalOpen: (downloadModalOpen) => set({ downloadModalOpen }),
   setPendingDownload: (pendingDownload) => set({ pendingDownload }),
-  openInterceptedDownload: (probe) => set({ pendingDownload: probe, configModalOpen: true }),
+  openInterceptedDownload: (probe) => set({ pendingDownload: probe, downloadModalOpen: true }),
+  setSettingsModalOpen: (settingsModalOpen) => set({ settingsModalOpen }),
 
   fetchTasks: async () => {
     try {
@@ -94,7 +100,7 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
       // Instead of adding immediately, open the modal
       set({ 
         pendingDownload: probe, 
-        configModalOpen: true,
+        downloadModalOpen: true,
         addModalOpen: false,
         newUrl: '' 
       })
@@ -127,7 +133,7 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
       })
 
       if (res.ok) {
-        set({ configModalOpen: false, pendingDownload: null })
+        set({ downloadModalOpen: false, pendingDownload: null })
         notifications.show({
           title: 'Download Added',
           message: `${config.filename} has been added to the queue.`,
@@ -221,6 +227,9 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
   },
 
   initSSE: () => {
+    // Fetch config once on init
+    get().fetchConfig()
+
     const eventSource = new EventSource(`${API_BASE}/events`)
     const prevStatuses = new Map<number, DownloadTask['status']>()
 
@@ -257,5 +266,27 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
     }
 
     return () => eventSource.close()
-  }
+  },
+
+  fetchConfig: async () => {
+    try {
+      const res = await fetch(`${API_BASE}/config`)
+      if (res.ok) set({ config: await res.json() })
+    } catch {
+      // daemon not yet ready; config stays null
+    }
+  },
+
+  saveConfig: async (updates) => {
+    try {
+      const res = await fetch(`${API_BASE}/config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      })
+      if (res.ok) set({ config: await res.json() })
+    } catch {
+      notifications.show({ title: 'Settings', message: 'Failed to save settings', color: 'red' })
+    }
+  },
 }))

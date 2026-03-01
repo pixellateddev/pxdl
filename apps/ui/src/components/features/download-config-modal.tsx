@@ -1,15 +1,18 @@
 import { type FC, useEffect, useState } from 'react'
-import { Modal, Button, TextInput, Stack, Group, Text, Box } from '@mantine/core'
+import { Modal, Button, TextInput, Stack, Group, Text, Box, Input } from '@mantine/core'
 import { useDownloadStore } from '../../store/use-download-store'
-import { IconFolder, IconFileText, IconCheck } from '@tabler/icons-react'
+import { IconFolder, IconFileText, IconCheck, IconChevronRight } from '@tabler/icons-react'
 import { formatBytes } from '@pxdl/utils'
+
+const isTauri = () => '__TAURI_INTERNALS__' in window
 
 export const DownloadConfigModal: FC = () => {
   const {
-    configModalOpen,
-    setConfigModalOpen,
+    downloadModalOpen,
+    setDownloadModalOpen,
     pendingDownload,
-    confirmDownload
+    confirmDownload,
+    config,
   } = useDownloadStore()
 
   const [filename, setFilename] = useState('')
@@ -18,9 +21,15 @@ export const DownloadConfigModal: FC = () => {
   useEffect(() => {
     if (pendingDownload) {
       setFilename(pendingDownload.filename)
-      setDirectory('')
+      setDirectory(config?.defaultDownloadDir ?? '')
     }
-  }, [pendingDownload])
+  }, [pendingDownload, config])
+
+  const handleBrowse = async () => {
+    const { open } = await import('@tauri-apps/plugin-dialog')
+    const selected = await open({ directory: true, multiple: false, defaultPath: directory })
+    if (typeof selected === 'string') setDirectory(selected)
+  }
 
   const handleConfirm = () => {
     confirmDownload({ filename, directory })
@@ -28,8 +37,8 @@ export const DownloadConfigModal: FC = () => {
 
   return (
     <Modal
-      opened={configModalOpen}
-      onClose={() => setConfigModalOpen(false)}
+      opened={downloadModalOpen}
+      onClose={() => setDownloadModalOpen(false)}
       title={<Text fw={700}>Download Configuration</Text>}
       centered
       size="md"
@@ -58,17 +67,31 @@ export const DownloadConfigModal: FC = () => {
           leftSection={<IconFileText size={16} />}
         />
 
-        <TextInput
-          label="Download Folder"
-          placeholder="Default Downloads folder"
-          value={directory}
-          onChange={(e) => setDirectory(e.target.value)}
-          leftSection={<IconFolder size={16} />}
-          description="Leave empty to use system default"
-        />
+        {isTauri() ? (
+          <Input.Wrapper label="Download Folder">
+            <Input
+              component="button"
+              type="button"
+              pointer
+              onClick={handleBrowse}
+              leftSection={<IconFolder size={16} />}
+              rightSection={<IconChevronRight size={14} />}
+              styles={{ input: { textAlign: 'left', cursor: 'pointer' } }}
+            >
+              <Text size="sm" truncate="end">{directory}</Text>
+            </Input>
+          </Input.Wrapper>
+        ) : (
+          <TextInput
+            label="Download Folder"
+            value={directory}
+            onChange={(e) => setDirectory(e.target.value)}
+            leftSection={<IconFolder size={16} />}
+          />
+        )}
 
         <Group justify="flex-end" mt="xl">
-          <Button variant="light" color="gray" onClick={() => setConfigModalOpen(false)}>
+          <Button variant="light" color="gray" onClick={() => setDownloadModalOpen(false)}>
             Cancel
           </Button>
           <Button

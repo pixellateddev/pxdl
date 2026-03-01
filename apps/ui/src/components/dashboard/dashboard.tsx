@@ -8,6 +8,7 @@ import { SearchBar } from '../features/search-bar'
 import { TaskList } from '../features/task-list'
 import { DownloadConfigModal } from '../features/download-config-modal'
 import { TaskDetailsModal } from '../features/task-details-modal'
+import { SettingsModal } from '../features/settings-modal'
 import { Container, Box } from '@mantine/core'
 import type { ProbeResult } from '@pxdl/types'
 
@@ -50,6 +51,7 @@ export const Dashboard: FC = () => {
         <AddDownloadModal />
         <DownloadConfigModal />
         <TaskDetailsModal />
+        <SettingsModal />
       </Container>
 
       <StatusBar />

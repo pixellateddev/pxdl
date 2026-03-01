@@ -1,3 +1,7 @@
+export interface DaemonConfig {
+  defaultDownloadDir: string
+}
+
 export interface ProbeResult {
   url: string
   filename: string

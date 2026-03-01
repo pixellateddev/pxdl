@@ -1,13 +1,28 @@
 import { existsSync, renameSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, parse } from 'node:path'
-import { DAEMON_PORT, probeUrl, repository } from '@pxdl/core'
-import type { NewDownload } from '@pxdl/types'
+import { CONFIG_DIR, DAEMON_PORT, probeUrl, repository } from '@pxdl/core'
+import type { DaemonConfig, NewDownload } from '@pxdl/types'
 import { activeDownloaders, startScheduler, triggerScheduler } from './scheduler'
 
 startScheduler()
 
-const DEFAULT_DOWNLOAD_DIR = join(homedir(), 'Downloads')
+const CONFIG_FILE = join(CONFIG_DIR, 'config.json')
+
+const loadConfig = (): DaemonConfig => {
+  try {
+    return JSON.parse(require('fs').readFileSync(CONFIG_FILE, 'utf8'))
+  } catch {
+    return { defaultDownloadDir: join(homedir(), 'Downloads') }
+  }
+}
+
+const saveConfig = (config: DaemonConfig): void => {
+  require('fs').mkdirSync(CONFIG_DIR, { recursive: true })
+  require('fs').writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2))
+}
+
+let config = loadConfig()
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -128,7 +143,7 @@ Bun.serve({
       }
     } else if (req.method === 'POST' && url.pathname === '/add') {
       const body = (await req.json()) as NewDownload & { force?: boolean }
-      const directory = body.directory || DEFAULT_DOWNLOAD_DIR
+      const directory = body.directory || config.defaultDownloadDir
       const existing = !body.force ? repository.getByUrl(body.url) : null
 
       if (existing) {
@@ -232,6 +247,15 @@ Bun.serve({
         repository.deleteDownload(id)
       }
       response = Response.json({ success: true })
+    } else if (url.pathname === '/config') {
+      if (req.method === 'POST') {
+        const body = (await req.json()) as Partial<DaemonConfig>
+        config = { ...config, ...body }
+        saveConfig(config)
+        response = Response.json(config)
+      } else {
+        response = Response.json(config)
+      }
     } else {
       response = new Response('pxdl daemon is running', { status: 200 })
     }

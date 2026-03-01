@@ -10,7 +10,7 @@ import {
 } from '@tabler/icons-react'
 
 export const Toolbar: FC = () => {
-  const { setAddModalOpen, pauseAll, resumeAll, clearCompleted } = useDownloadStore()
+  const { setAddModalOpen, pauseAll, resumeAll, clearCompleted, setSettingsModalOpen } = useDownloadStore()
 
   return (
     <Paper p="xs" withBorder mb="lg" bg="var(--mantine-color-default)">
@@ -48,7 +48,7 @@ export const Toolbar: FC = () => {
         </Group>
 
         <Tooltip label="Settings" openDelay={500}>
-          <ActionIcon variant="subtle" color="gray" size="lg">
+          <ActionIcon variant="subtle" color="gray" size="lg" onClick={() => setSettingsModalOpen(true)}>
             <IconSettings size={22} />
           </ActionIcon>
         </Tooltip>
