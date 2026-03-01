@@ -36,3 +36,6 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .DS_Store
 
 pxdl-legacy
+
+# Extension private key — do not commit
+apps/extension/extension.pem

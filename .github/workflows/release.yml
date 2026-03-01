@@ -1,0 +1,142 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-macos:
+    name: Build macOS (universal)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build daemon sidecars (macOS)
+        run: |
+          bun run --cwd apps/daemon build:sidecar:darwin-arm64
+          bun run --cwd apps/daemon build:sidecar:darwin-x64
+
+      - name: Build bridge sidecars (macOS)
+        run: |
+          bun run --cwd apps/bridge build:sidecar:darwin-arm64
+          bun run --cwd apps/bridge build:sidecar:darwin-x64
+
+      - name: Build UI
+        run: bun run --filter pxdl-ui build
+
+      - name: Build Tauri app (universal)
+        run: bunx tauri build --target universal-apple-darwin
+        working-directory: apps/desktop
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: pixel-downloader-macos
+          path: apps/desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+
+  build-windows:
+    name: Build Windows (x64)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build daemon sidecar (Windows)
+        run: bun run --cwd apps/daemon build:sidecar:windows-x64
+
+      - name: Build bridge sidecar (Windows)
+        run: bun run --cwd apps/bridge build:sidecar:windows-x64
+
+      - name: Build UI
+        run: bun run --filter pxdl-ui build
+
+      - name: Build Tauri app
+        run: bunx tauri build
+        working-directory: apps/desktop
+
+      - name: Upload NSIS installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: pixel-downloader-windows-nsis
+          path: apps/desktop/src-tauri/target/release/bundle/nsis/*.exe
+
+      - name: Upload MSI installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: pixel-downloader-windows-msi
+          path: apps/desktop/src-tauri/target/release/bundle/msi/*.msi
+
+  build-extension:
+    name: Build Chrome Extension
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build extension
+        run: bun run --filter pxdl-extension build
+
+      - name: Zip extension
+        run: zip -r pxdl-extension.zip .
+        working-directory: apps/extension/browsers/chrome/dist
+
+      - name: Upload extension zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: pixel-downloader-extension
+          path: apps/extension/browsers/chrome/dist/pxdl-extension.zip
+
+  release:
+    name: Create GitHub Release
+    needs: [build-macos, build-windows, build-extension]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/pixel-downloader-macos/*.dmg
+            artifacts/pixel-downloader-windows-nsis/*.exe
+            artifacts/pixel-downloader-windows-msi/*.msi
+            artifacts/pixel-downloader-extension/*.zip
+          generate_release_notes: true

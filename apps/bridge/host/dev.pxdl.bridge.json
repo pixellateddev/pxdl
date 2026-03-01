@@ -4,6 +4,6 @@
   "path": "/usr/local/bin/pxdl-bridge",
   "type": "stdio",
   "allowed_origins": [
-    "chrome-extension://faedhkjilbloikbibkfmgaeihipndiif/"
+    "chrome-extension://lfglfmoihoioaclajdfflcjkfdjgkdjl/"
   ]
 }

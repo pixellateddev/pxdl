@@ -12,6 +12,15 @@
     "build:sidecar": {
       "outputs": ["../desktop/src-tauri/bin/**"]
     },
+    "build:sidecar:darwin-arm64": {
+      "outputs": ["../desktop/src-tauri/bin/**"]
+    },
+    "build:sidecar:darwin-x64": {
+      "outputs": ["../desktop/src-tauri/bin/**"]
+    },
+    "build:sidecar:windows-x64": {
+      "outputs": ["../desktop/src-tauri/bin/**"]
+    },
     "dev": {
       "cache": false,
       "persistent": true

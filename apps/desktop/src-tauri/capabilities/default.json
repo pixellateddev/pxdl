@@ -18,6 +18,10 @@
         {
           "name": "bin/pxdl-daemon",
           "sidecar": true
+        },
+        {
+          "name": "bin/pxdl-bridge",
+          "sidecar": true
         }
       ]
     }

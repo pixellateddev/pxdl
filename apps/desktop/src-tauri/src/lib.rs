@@ -64,6 +64,122 @@ fn spawn_intercept_server(app_handle: tauri::AppHandle) {
     });
 }
 
+fn register_native_messaging_host() {
+    let current_exe = match std::env::current_exe() {
+        Ok(p) => p,
+        Err(e) => {
+            log::warn!("native messaging host: could not resolve current exe: {}", e);
+            return;
+        }
+    };
+
+    let bin_dir = match current_exe.parent() {
+        Some(p) => p.to_path_buf(),
+        None => {
+            log::warn!("native messaging host: could not get binary directory");
+            return;
+        }
+    };
+
+    let bridge_bin = bin_dir.join(if cfg!(windows) {
+        "pxdl-bridge.exe"
+    } else {
+        "pxdl-bridge"
+    });
+
+    let bridge_path_str = bridge_bin.to_string_lossy().replace('\\', "\\\\");
+
+    let host_json = format!(
+        r#"{{
+  "name": "dev.pxdl.bridge",
+  "description": "pxdl Native Messaging Bridge",
+  "path": "{}",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://lfglfmoihoioaclajdfflcjkfdjgkdjl/"
+  ]
+}}"#,
+        bridge_path_str
+    );
+
+    #[cfg(target_os = "macos")]
+    {
+        let home = match std::env::var("HOME") {
+            Ok(h) => std::path::PathBuf::from(h),
+            Err(e) => {
+                log::warn!("native messaging host: HOME not set: {}", e);
+                return;
+            }
+        };
+
+        let browsers = [
+            home.join("Library/Application Support/Google/Chrome/NativeMessagingHosts"),
+            home.join("Library/Application Support/Chromium/NativeMessagingHosts"),
+            home.join("Library/Application Support/Microsoft Edge/NativeMessagingHosts"),
+        ];
+
+        for dir in &browsers {
+            if let Err(e) = std::fs::create_dir_all(dir) {
+                log::warn!("native messaging host: could not create dir {:?}: {}", dir, e);
+                continue;
+            }
+            let dest = dir.join("dev.pxdl.bridge.json");
+            if let Err(e) = std::fs::write(&dest, &host_json) {
+                log::warn!("native messaging host: could not write {:?}: {}", dest, e);
+            }
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        use winreg::enums::{HKEY_CURRENT_USER, KEY_SET_VALUE};
+        use winreg::RegKey;
+
+        let appdata = match std::env::var("APPDATA") {
+            Ok(v) => std::path::PathBuf::from(v),
+            Err(e) => {
+                log::warn!("native messaging host: APPDATA not set: {}", e);
+                return;
+            }
+        };
+
+        let browsers = [
+            appdata.join("Google\\Chrome\\User Data\\NativeMessagingHosts"),
+            appdata.join("Chromium\\User Data\\NativeMessagingHosts"),
+            appdata.join("Microsoft\\Edge\\User Data\\NativeMessagingHosts"),
+        ];
+
+        let reg_paths = [
+            "Software\\Google\\Chrome\\NativeMessagingHosts\\dev.pxdl.bridge",
+            "Software\\Chromium\\NativeMessagingHosts\\dev.pxdl.bridge",
+            "Software\\Microsoft\\Edge\\NativeMessagingHosts\\dev.pxdl.bridge",
+        ];
+
+        for (dir, reg_path) in browsers.iter().zip(reg_paths.iter()) {
+            if let Err(e) = std::fs::create_dir_all(dir) {
+                log::warn!("native messaging host: could not create dir {:?}: {}", dir, e);
+                continue;
+            }
+            let dest = dir.join("dev.pxdl.bridge.json");
+            if let Err(e) = std::fs::write(&dest, &host_json) {
+                log::warn!("native messaging host: could not write {:?}: {}", dest, e);
+                continue;
+            }
+            let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+            match hkcu.create_subkey_with_flags(reg_path, KEY_SET_VALUE) {
+                Ok((key, _)) => {
+                    if let Err(e) = key.set_value("", &dest.to_string_lossy().as_ref()) {
+                        log::warn!("native messaging host: registry write failed for {}: {}", reg_path, e);
+                    }
+                }
+                Err(e) => {
+                    log::warn!("native messaging host: could not open registry key {}: {}", reg_path, e);
+                }
+            }
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -82,6 +198,9 @@ pub fn run() {
                         .build(),
                 )?;
             }
+
+            // Register native messaging host so the browser extension can find the bridge
+            register_native_messaging_host();
 
             // System tray
             let show_item = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;

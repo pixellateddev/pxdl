@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "bun run src/index.ts",
     "build": "bun build ./src/index.ts --compile --outfile bin/pxdl-daemon",
-    "build:sidecar": "mkdir -p ../desktop/src-tauri/bin && bun build ./src/index.ts --compile --outfile ../desktop/src-tauri/bin/pxdl-daemon-aarch64-apple-darwin",
+    "build:sidecar": "bun run build:sidecar:darwin-arm64",
+    "build:sidecar:darwin-arm64": "mkdir -p ../desktop/src-tauri/bin && bun build ./src/index.ts --compile --target=bun-darwin-arm64 --outfile ../desktop/src-tauri/bin/pxdl-daemon-aarch64-apple-darwin",
+    "build:sidecar:darwin-x64": "mkdir -p ../desktop/src-tauri/bin && bun build ./src/index.ts --compile --target=bun-darwin-x64 --outfile ../desktop/src-tauri/bin/pxdl-daemon-x86_64-apple-darwin",
+    "build:sidecar:windows-x64": "mkdir -p ../desktop/src-tauri/bin && bun build ./src/index.ts --compile --target=bun-windows-x64 --outfile ../desktop/src-tauri/bin/pxdl-daemon-x86_64-pc-windows-msvc.exe",
     "lint": "biome check .",
     "format": "biome check --write ."
   },
