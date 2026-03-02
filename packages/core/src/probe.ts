@@ -54,9 +54,20 @@ const parseResponse = (url: string, response: Response): ProbeResult => {
   const contentDisposition = headers.get('content-disposition')
   let filename = ''
   if (contentDisposition) {
-    const match = contentDisposition.match(/filename="?([^"]+)"?/)
-    if (match) {
-      filename = match[1] as string
+    // RFC 5987 encoded filename takes priority: filename*=UTF-8''encoded-value
+    const rfc5987Match = contentDisposition.match(/filename\*=UTF-8''([^;\s]+)/i)
+    if (rfc5987Match) {
+      try {
+        filename = decodeURIComponent(rfc5987Match[1] as string)
+      } catch {
+        filename = rfc5987Match[1] as string
+      }
+    } else {
+      // Fall back to plain filename= (quoted or unquoted)
+      const match = contentDisposition.match(/filename="([^"]+)"|filename=([^;\s]+)/)
+      if (match) {
+        filename = (match[1] ?? match[2]) as string
+      }
     }
   }
 
