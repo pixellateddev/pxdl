@@ -129,6 +129,7 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
           directory: config.directory,
           size: pendingDownload.size,
           isResumable: pendingDownload.isResumable,
+          headers: pendingDownload.headers,
         }),
       })
 

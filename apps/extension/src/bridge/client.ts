@@ -38,11 +38,11 @@ export const addDownload = (payload: {
     )
   })
 
-export const interceptDownload = (url: string): Promise<void> =>
+export const interceptDownload = (url: string, headers?: Record<string, string>): Promise<void> =>
   new Promise((resolve, reject) => {
     chrome.runtime.sendNativeMessage(
       HOST_NAME,
-      { type: 'INTERCEPT', url },
+      { type: 'INTERCEPT', url, headers: headers ?? {} },
       (res: BridgeOk) => {
         if (chrome.runtime.lastError)
           return reject(new Error(chrome.runtime.lastError.message))

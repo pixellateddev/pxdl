@@ -8,6 +8,7 @@ export interface ProbeResult {
   size: number
   isResumable: boolean
   contentType: string
+  headers?: Record<string, string>
 }
 
 export interface DownloadTask {
@@ -19,6 +20,7 @@ export interface DownloadTask {
   downloadedBytes: number
   status: 'pending' | 'downloading' | 'completed' | 'failed' | 'paused'
   isResumable: boolean
+  headers?: Record<string, string>
   createdAt: string
   speed?: number
   eta?: number
@@ -37,5 +39,5 @@ export interface SegmentTask {
 
 export type NewDownload = Pick<
   DownloadTask,
-  'url' | 'filename' | 'size' | 'isResumable' | 'directory'
+  'url' | 'filename' | 'size' | 'isResumable' | 'directory' | 'headers'
 >

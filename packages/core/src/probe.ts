@@ -4,22 +4,24 @@ import type { ProbeResult } from '@pxdl/types'
 const USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
-export const probeUrl = async (url: string): Promise<ProbeResult> => {
+export const probeUrl = async (url: string, extraHeaders?: Record<string, string>): Promise<ProbeResult> => {
+  const baseHeaders: Record<string, string> = {
+    'Accept-Encoding': 'identity',
+    'User-Agent': USER_AGENT,
+    ...extraHeaders,
+  }
+
   const response = await fetch(url, {
     method: 'HEAD',
-    headers: {
-      'Accept-Encoding': 'identity',
-      'User-Agent': USER_AGENT,
-    },
+    headers: baseHeaders,
   })
 
   // Some servers don't support HEAD or return 405/403, fall back to a Range GET
   if (!response.ok) {
     const getResponse = await fetch(url, {
       headers: {
+        ...baseHeaders,
         Range: 'bytes=0-0',
-        'Accept-Encoding': 'identity',
-        'User-Agent': USER_AGENT,
       },
     })
 
@@ -27,13 +29,13 @@ export const probeUrl = async (url: string): Promise<ProbeResult> => {
       throw new Error(`Failed to probe URL: ${getResponse.statusText} (${getResponse.status})`)
     }
 
-    return parseResponse(url, getResponse)
+    return parseResponse(url, getResponse, extraHeaders)
   }
 
-  return parseResponse(url, response)
+  return parseResponse(url, response, extraHeaders)
 }
 
-const parseResponse = (url: string, response: Response): ProbeResult => {
+const parseResponse = (url: string, response: Response, extraHeaders?: Record<string, string>): ProbeResult => {
   const headers = response.headers
   const acceptRanges = headers.get('accept-ranges')
   const contentRange = headers.get('content-range')
@@ -87,5 +89,6 @@ const parseResponse = (url: string, response: Response): ProbeResult => {
     size,
     isResumable,
     contentType: headers.get('content-type') || 'application/octet-stream',
+    ...(extraHeaders && Object.keys(extraHeaders).length > 0 ? { headers: extraHeaders } : {}),
   }
 }

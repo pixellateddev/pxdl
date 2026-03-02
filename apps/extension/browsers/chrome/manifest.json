@@ -4,7 +4,8 @@
   "version": "0.1.0",
   "description": "Route browser downloads through pxdl for accelerated multi-segment downloading",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuYvzHkQ1nD0DhWXfGy4hSWnuK2FbeGcS4HirTXButKiHBuqwAOTk4ooszheb+iGKJeZXXcS23rWcq0K4Gox1MAAhbn6crMn8Az/Z8GeT7/o7gRirfFB0Jy0BzuX3eJ77G+MaKmUUufFeZPM5UlBQdxzq35uQKnTCOasiqNgXGiXUyHOYHvEek5FQunr+6lUPM4pJICnI1W+w/Je/Ws+t4rtZk8wkPgwgeQ55C+C+cPmkbF9XbymKO6nhD4fvSsupT8AxGnJE7CufkwXmzbhWP7qxAjoyy4Q/ayM8aGFg6lyLsugXlGK+iOQS9LiXGor+2hvEjkBstK+4tThUHvv0jQIDAQAB",
-  "permissions": ["downloads", "nativeMessaging", "storage"],
+  "permissions": ["downloads", "nativeMessaging", "storage", "webRequest"],
+  "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js",
     "type": "module"

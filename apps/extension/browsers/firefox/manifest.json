@@ -3,7 +3,7 @@
   "name": "pxdl Downloader",
   "version": "0.1.0",
   "description": "Route browser downloads through pxdl for accelerated multi-segment downloading",
-  "permissions": ["downloads", "nativeMessaging", "storage"],
+  "permissions": ["downloads", "nativeMessaging", "storage", "webRequest", "<all_urls>"],
   "background": {
     "scripts": ["background.js"],
     "persistent": false

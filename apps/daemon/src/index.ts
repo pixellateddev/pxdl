@@ -135,7 +135,12 @@ Bun.serve({
         response = Response.json({ error: 'Missing URL parameter' }, { status: 400 })
       } else {
         try {
-          const result = await probeUrl(targetUrl)
+          let extraHeaders: Record<string, string> | undefined
+          if (req.method === 'POST') {
+            const body = await req.json().catch(() => ({}))
+            extraHeaders = body.headers
+          }
+          const result = await probeUrl(targetUrl, extraHeaders)
           response = Response.json(result)
         } catch (err: any) {
           response = Response.json({ error: err.message }, { status: 500 })
@@ -163,6 +168,7 @@ Bun.serve({
           directory,
           size: body.size,
           isResumable: body.isResumable,
+          headers: body.headers,
         })
         triggerScheduler()
         response = Response.json({ success: true, id: task.id, message: `Added ${filename}` })

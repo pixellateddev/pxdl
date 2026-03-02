@@ -12,6 +12,7 @@ export class Downloader {
   private abortController: AbortController
   private filePath: string
   private tempPath: string
+  private extraHeaders: Record<string, string>
   public downloadedBytes = 0
   public sessionDownloadedBytes = 0
   public startTime = 0
@@ -24,6 +25,7 @@ export class Downloader {
     this.filePath = join(task.directory, task.filename)
     // Hidden temp file: .filename.pxdl
     this.tempPath = join(task.directory, `.${task.filename}.pxdl`)
+    this.extraHeaders = task.headers ?? {}
   }
 
   async start(): Promise<void> {
@@ -66,6 +68,7 @@ export class Downloader {
       headers: {
         'Accept-Encoding': 'identity',
         'User-Agent': USER_AGENT,
+        ...this.extraHeaders,
         ...(startByte > 0 ? { Range: `bytes=${startByte}-` } : {}),
       },
       signal: this.abortController.signal,
@@ -168,6 +171,7 @@ export class Downloader {
           headers: {
             'Accept-Encoding': 'identity',
             'User-Agent': USER_AGENT,
+            ...this.extraHeaders,
             Range: `bytes=${start}-${segment.endByte}`,
           },
           signal: this.abortController.signal,

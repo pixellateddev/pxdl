@@ -31,8 +31,14 @@ const msg = JSON.parse(msgBuf.toString('utf8'))
 
 try {
   if (msg.type === 'INTERCEPT') {
-    // 1. Probe the URL via daemon
-    const probeRes = await fetch(`${DAEMON}/probe?url=${encodeURIComponent(msg.url as string)}`)
+    const headers = (msg.headers ?? {}) as Record<string, string>
+
+    // 1. Probe the URL via daemon, forwarding captured headers
+    const probeRes = await fetch(`${DAEMON}/probe?url=${encodeURIComponent(msg.url as string)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ headers }),
+    })
     if (!probeRes.ok) throw new Error(`Probe failed: ${probeRes.status}`)
     const probe = await probeRes.json()
 

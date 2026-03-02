@@ -24,10 +24,18 @@ db.run(`
     speed REAL DEFAULT 0,
     eta INTEGER DEFAULT 0,
     is_resumable INTEGER DEFAULT 0,
+    headers TEXT DEFAULT NULL,
     status TEXT DEFAULT 'pending',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )
 `)
+
+// Migrate existing databases to add headers column if missing
+try {
+  db.run('ALTER TABLE downloads ADD COLUMN headers TEXT DEFAULT NULL')
+} catch {
+  // Column already exists, ignore
+}
 
 db.run(`
   CREATE TABLE IF NOT EXISTS segments (
@@ -45,9 +53,16 @@ export const repository = {
   addDownload(task: NewDownload): DownloadTask {
     const result = db
       .prepare(
-        'INSERT INTO downloads (url, filename, directory, size, is_resumable) VALUES (?, ?, ?, ?, ?)'
+        'INSERT INTO downloads (url, filename, directory, size, is_resumable, headers) VALUES (?, ?, ?, ?, ?, ?)'
       )
-      .run(task.url, task.filename, task.directory, task.size, task.isResumable ? 1 : 0)
+      .run(
+        task.url,
+        task.filename,
+        task.directory,
+        task.size,
+        task.isResumable ? 1 : 0,
+        task.headers ? JSON.stringify(task.headers) : null,
+      )
 
     return this.getDownloadById(result.lastInsertRowid as number)!
   },
@@ -130,7 +145,7 @@ export const repository = {
 
   createSegments(segments: Omit<SegmentTask, 'id' | 'status' | 'downloadedBytes'>[]): void {
     const insert = db.prepare(`
-      INSERT INTO segments (download_id, start_byte, end_byte) 
+      INSERT INTO segments (download_id, start_byte, end_byte)
       VALUES ($downloadId, $startByte, $endByte)
     `)
 
@@ -163,6 +178,7 @@ export const repository = {
       downloadedBytes: row.downloaded_bytes,
       status: row.status as DownloadTask['status'],
       isResumable: row.is_resumable === 1,
+      headers: row.headers ? JSON.parse(row.headers) : undefined,
       createdAt: row.created_at,
       speed: row.speed,
       eta: row.eta,

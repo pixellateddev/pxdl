@@ -1,5 +1,6 @@
 use axum::{extract::State, http::StatusCode, routing::post, Json, Router};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::sync::Arc;
 use tauri::{
     menu::{Menu, MenuItem},
@@ -16,6 +17,8 @@ struct ProbeResult {
     size: i64,
     is_resumable: bool,
     content_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    headers: Option<HashMap<String, String>>,
 }
 
 #[derive(Clone)]
