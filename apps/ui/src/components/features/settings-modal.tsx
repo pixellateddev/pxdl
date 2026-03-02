@@ -1,12 +1,14 @@
 import { type FC, useEffect, useState } from 'react'
-import { Modal, Button, Stack, Group, Text, Input } from '@mantine/core'
-import { IconFolder, IconChevronRight, IconCheck } from '@tabler/icons-react'
+import { Modal, Button, Stack, Group, Text, Input, SegmentedControl } from '@mantine/core'
+import { useMantineColorScheme } from '@mantine/core'
+import { IconFolder, IconChevronRight, IconCheck, IconSun, IconMoon, IconDeviceDesktop } from '@tabler/icons-react'
 import { useDownloadStore } from '../../store/use-download-store'
 
 const isTauri = () => '__TAURI_INTERNALS__' in window
 
 export const SettingsModal: FC = () => {
   const { settingsModalOpen, setSettingsModalOpen, config, saveConfig } = useDownloadStore()
+  const { colorScheme, setColorScheme } = useMantineColorScheme()
 
   const [downloadDir, setDownloadDir] = useState('')
 
@@ -61,6 +63,23 @@ export const SettingsModal: FC = () => {
               leftSection={<IconFolder size={16} />}
             />
           )}
+        </Input.Wrapper>
+
+        <Text size="xs" c="dimmed" fw={700} style={{ textTransform: 'uppercase' }}>
+          Appearance
+        </Text>
+
+        <Input.Wrapper label="Theme">
+          <SegmentedControl
+            fullWidth
+            value={colorScheme}
+            onChange={(v) => setColorScheme(v as 'light' | 'dark' | 'auto')}
+            data={[
+              { value: 'light', label: <Group gap={6} justify="center"><IconSun size={14} /><span>Light</span></Group> },
+              { value: 'dark', label: <Group gap={6} justify="center"><IconMoon size={14} /><span>Dark</span></Group> },
+              { value: 'auto', label: <Group gap={6} justify="center"><IconDeviceDesktop size={14} /><span>System</span></Group> },
+            ]}
+          />
         </Input.Wrapper>
 
         <Group justify="flex-end" mt="md">

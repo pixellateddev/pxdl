@@ -9,7 +9,7 @@ import { TaskList } from '../features/task-list'
 import { DownloadConfigModal } from '../features/download-config-modal'
 import { TaskDetailsModal } from '../features/task-details-modal'
 import { SettingsModal } from '../features/settings-modal'
-import { Container, Box } from '@mantine/core'
+import { Box } from '@mantine/core'
 import type { ProbeResult } from '@pxdl/types'
 
 export const Dashboard: FC = () => {
@@ -39,8 +39,8 @@ export const Dashboard: FC = () => {
 
   return (
     <Box pb={60}> {/* Space for fixed StatusBar */}
-      <Container size="md" py="md">
-        <GlobalHeader />
+      <Box px="md" py="md">
+        {!('__TAURI_INTERNALS__' in window) && <GlobalHeader />}
         <Toolbar />
 
         <Box component="main">
@@ -52,7 +52,7 @@ export const Dashboard: FC = () => {
         <DownloadConfigModal />
         <TaskDetailsModal />
         <SettingsModal />
-      </Container>
+      </Box>
 
       <StatusBar />
     </Box>
